@@ -1,5 +1,5 @@
 <template>
-  <tr>
+  <tr :class="{ 'editing-row': isEditing }">
     <td v-if="!isEditing">{{ formattedDate }}</td>
     <td v-if="!isEditing">{{ formattedTime }}</td>
     <td v-if="!isEditing">{{ entry.weight_kg }}</td>
@@ -172,3 +172,13 @@ function confirmDelete(): void {
   emit('delete', props.entry.id)
 }
 </script>
+
+<style scoped>
+.editing-row {
+  background-color: rgba(var(--v-theme-primary), 0.08);
+}
+
+.editing-row :deep(.v-field) {
+  background-color: rgb(var(--v-theme-surface));
+}
+</style>

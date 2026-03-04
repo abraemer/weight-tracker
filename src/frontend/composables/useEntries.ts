@@ -17,16 +17,17 @@ export function resetEntriesState(): void {
 export function useEntries(userId: number | null) {
   const entries = ref<Entry[]>([])
 
-  async function loadEntries(): Promise<void> {
-    if (userId === null) {
+  async function loadEntries(targetUserId?: number): Promise<void> {
+    const effectiveUserId = targetUserId ?? userId
+    if (effectiveUserId === null) {
       entries.value = []
       return
     }
     loading.value = true
     error.value = null
     try {
-      const loadedEntries = await fetchEntries(userId)
-      entriesByUser.value.set(userId, loadedEntries)
+      const loadedEntries = await fetchEntries(effectiveUserId)
+      entriesByUser.value.set(effectiveUserId, loadedEntries)
       entries.value = loadedEntries
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load entries'

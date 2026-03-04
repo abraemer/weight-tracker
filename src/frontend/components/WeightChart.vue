@@ -6,15 +6,25 @@
         <v-icon size="64" color="grey-lighten-1">mdi-chart-line</v-icon>
         <p class="mt-4">No data to display</p>
       </div>
-      <div v-else class="chart-container">
-        <Line :data="chartData" :options="chartOptions" />
-      </div>
+      <template v-else>
+        <v-checkbox
+          v-if="hasSufficientDataForTrendline"
+          v-model="showTrendline"
+          label="Show trendline"
+          density="compact"
+          hide-details
+          class="mb-2"
+        />
+        <div class="chart-container">
+          <Line :data="chartData" :options="chartOptions" />
+        </div>
+      </template>
     </v-card-text>
   </v-card>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Line } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -57,16 +67,18 @@ interface TrendlineData {
 }
 
 function calculateTrendline(entries: Entry[]): TrendlineData | null {
-  const now = new Date()
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+  if (entries.length < 2) return null
 
-  const filteredEntries = entries.filter((e) => new Date(e.timestamp) >= thirtyDaysAgo)
+  const timestamps = entries.map((e) => new Date(e.timestamp).getTime())
+  const minTime = Math.min(...timestamps)
+  const maxTime = Math.max(...timestamps)
+  const daysDiff = (maxTime - minTime) / (24 * 60 * 60 * 1000)
 
-  if (filteredEntries.length < 2) {
+  if (daysDiff < 30) {
     return null
   }
 
-  const points = filteredEntries.map((e) => ({
+  const points = entries.map((e) => ({
     x: new Date(e.timestamp).getTime(),
     y: e.weight_kg,
   }))
@@ -87,8 +99,8 @@ function calculateTrendline(entries: Entry[]): TrendlineData | null {
   const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX)
   const intercept = (sumY - slope * sumX) / n
 
-  const startDate = new Date(Math.min(...points.map((p) => p.x)))
-  const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+  const startDate = new Date(minTime)
+  const endDate = new Date(maxTime + 30 * 24 * 60 * 60 * 1000)
 
   return { slope, intercept, startDate, endDate }
 }
@@ -110,6 +122,10 @@ const sortedEntries = computed(() => {
 })
 
 const trendline = computed(() => calculateTrendline(props.entries))
+
+const hasSufficientDataForTrendline = computed(() => trendline.value !== null)
+
+const showTrendline = ref(true)
 
 const chartData = computed(() => {
   const dataPoints = sortedEntries.value.map((e) => ({
@@ -138,7 +154,7 @@ const chartData = computed(() => {
     },
   ]
 
-  if (trendline.value) {
+  if (trendline.value && showTrendline.value) {
     const trendPoints = getTrendlinePoints(trendline.value)
     datasets.push({
       label: 'Trend (30-day)',
@@ -155,9 +171,20 @@ const chartData = computed(() => {
   return { datasets }
 })
 
-const oneYearAgo = computed(() => {
+const xAxisRange = computed(() => {
   const now = new Date()
-  return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
+  if (sortedEntries.value.length === 0) {
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    return { min: thirtyDaysAgo.getTime(), max: now.getTime() }
+  }
+
+  const timestamps = sortedEntries.value.map((e) => new Date(e.timestamp).getTime())
+  const minTime = Math.min(...timestamps)
+  const maxTime = Math.max(...timestamps)
+  const range = maxTime - minTime
+  const padding = range > 0 ? range * 0.1 : 7 * 24 * 60 * 60 * 1000
+
+  return { min: minTime - padding, max: maxTime + padding }
 })
 
 const chartOptions = computed(() => ({
@@ -174,7 +201,8 @@ const chartOptions = computed(() => ({
       title: {
         display: false,
       },
-      min: oneYearAgo.value.getTime(),
+      min: xAxisRange.value.min,
+      max: xAxisRange.value.max,
     },
     y: {
       display: true,

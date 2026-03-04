@@ -38,7 +38,11 @@ const isSaving = computed(() => {
   return isOperationLoading(`add-${props.userId}`)
 })
 
-watch(() => props.userId, loadEntries, { immediate: true })
+watch(
+  () => props.userId,
+  (newUserId) => loadEntries(newUserId),
+  { immediate: true }
+)
 
 async function handleCreate(data: NewEntry): Promise<void> {
   await addEntry(data)

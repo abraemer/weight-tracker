@@ -1,14 +1,8 @@
 <template>
   <v-card>
-    <v-card-title class="d-flex align-center">
-      Weight Entries
-      <v-spacer />
-      <v-btn v-if="!showNewRow" color="primary" prepend-icon="mdi-plus" @click="addNewRow">
-        Add Entry
-      </v-btn>
-    </v-card-title>
+    <v-card-title> Weight Entries </v-card-title>
 
-    <v-table v-if="entries.length > 0 || showNewRow" class="weight-table">
+    <v-table class="weight-table">
       <thead>
         <tr>
           <th>Date</th>
@@ -18,7 +12,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-if="showNewRow" class="new-entry-row">
+        <tr class="new-entry-row">
           <td>
             <v-text-field
               v-model="newDate"
@@ -63,7 +57,7 @@
             >
               <v-icon>mdi-check</v-icon>
             </v-btn>
-            <v-btn icon size="small" variant="text" :disabled="saving" @click="cancelNewEntry">
+            <v-btn icon size="small" variant="text" :disabled="saving" @click="clearNewEntry">
               <v-icon>mdi-close</v-icon>
             </v-btn>
           </td>
@@ -79,17 +73,11 @@
         />
       </tbody>
     </v-table>
-
-    <v-card-text v-else class="text-center text-medium-emphasis py-8">
-      <v-icon size="64" color="grey-lighten-1">mdi-scale-bathroom</v-icon>
-      <p class="mt-4">No weight entries yet</p>
-      <v-btn color="primary" class="mt-4" @click="addNewRow">Add Your First Entry</v-btn>
-    </v-card-text>
   </v-card>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getCurrentLocalDateTime, localToUtc } from '../api.js'
 import type { Entry, UpdateEntry, NewEntry } from '../types/index.js'
 import EntryRow from './EntryRow.vue'
@@ -105,7 +93,6 @@ const emit = defineEmits<{
   delete: [id: number]
 }>()
 
-const showNewRow = ref(false)
 const newDate = ref('')
 const newTime = ref('')
 const newWeight = ref<number | null>(null)
@@ -119,9 +106,9 @@ const sortedEntries = computed(() => {
 })
 
 const validationErrors = computed(() => ({
-  date: showNewRow.value && !newDate.value,
-  time: showNewRow.value && !newTime.value,
-  weight: showNewRow.value && (newWeight.value === null || newWeight.value <= 0),
+  date: !newDate.value,
+  time: !newTime.value,
+  weight: newWeight.value === null || newWeight.value <= 0,
 }))
 
 const isNewValid = computed(() => {
@@ -132,17 +119,15 @@ function isEntrySaving(id: number): boolean {
   return savingEntries.value.has(id)
 }
 
-function addNewRow(): void {
+function initNewEntry(): void {
   const now = getCurrentLocalDateTime()
   const parts = now.split('T')
   newDate.value = parts[0] ?? ''
   newTime.value = parts[1] ?? ''
   newWeight.value = null
-  showNewRow.value = true
 }
 
-function cancelNewEntry(): void {
-  showNewRow.value = false
+function clearNewEntry(): void {
   newDate.value = ''
   newTime.value = ''
   newWeight.value = null
@@ -160,10 +145,7 @@ async function saveNewEntry(): Promise<void> {
     weight_kg: newWeight.value,
   })
   savingInternal.value = false
-  showNewRow.value = false
-  newDate.value = ''
-  newTime.value = ''
-  newWeight.value = null
+  initNewEntry()
 }
 
 function handleUpdate(id: number, data: UpdateEntry): void {
@@ -177,6 +159,10 @@ function handleDelete(id: number): void {
   emit('delete', id)
   window.setTimeout(() => savingEntries.value.delete(id), 1000)
 }
+
+onMounted(() => {
+  initNewEntry()
+})
 </script>
 
 <style scoped>
@@ -186,6 +172,10 @@ function handleDelete(id: number): void {
 }
 
 .new-entry-row {
-  background-color: rgb(var(--v-theme-surface-variant));
+  background-color: rgba(var(--v-theme-primary), 0.08);
+}
+
+.new-entry-row :deep(.v-field) {
+  background-color: rgb(var(--v-theme-surface));
 }
 </style>
