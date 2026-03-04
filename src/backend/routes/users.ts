@@ -33,4 +33,19 @@ router.post('/', (req, res) => {
   res.status(201).json(user)
 })
 
+router.delete('/:id', (req, res) => {
+  const db = getDb()
+  const id = parseInt(req.params.id, 10)
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined
+  if (!user) {
+    res.status(404).json({ error: 'User not found' })
+    return
+  }
+
+  db.prepare('DELETE FROM entries WHERE user_id = ?').run(id)
+  db.prepare('DELETE FROM users WHERE id = ?').run(id)
+  res.status(204).send()
+})
+
 export default router
