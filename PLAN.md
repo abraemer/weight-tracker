@@ -98,21 +98,21 @@
 
 ### 4.1 UserTabs component
 
-- [ ] Display tabs for each user
-- [ ] Implement tab selection
-- [ ] Add horizontal scrolling for many users
+- [x] Display tabs for each user
+- [x] Implement tab selection
+- [x] Add horizontal scrolling for many users
 
 ### 4.2 AddUserDialog component
 
-- [ ] Create dialog with name input
-- [ ] Add validation (non-empty)
-- [ ] Emit create event
+- [x] Create dialog with name input
+- [x] Add validation (non-empty)
+- [x] Emit create event
 
 ### 4.3 Integrate user management
 
-- [ ] Show "Add User" dialog on first load if no users
-- [ ] Switch active user on tab click
-- [ ] Add "+" tab button
+- [x] Show "Add User" dialog on first load if no users
+- [x] Switch active user on tab click
+- [x] Add "+" tab button
 
 ## Phase 5: Entry Management UI
 

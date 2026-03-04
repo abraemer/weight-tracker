@@ -19,6 +19,10 @@ export default [
         parser: tseslint.parser,
         sourceType: 'module',
       },
+      globals: {
+        window: 'readonly',
+        localStorage: 'readonly',
+      },
     },
     rules: {
       'vue/multi-word-component-names': 'off',

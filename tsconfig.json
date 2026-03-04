@@ -20,7 +20,7 @@
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "types": ["node"],
-    "lib": ["esnext"],
+    "lib": ["esnext", "dom"],
     "paths": {
       "@/*": ["./src/frontend/*"]
     },
