@@ -45,15 +45,15 @@ watch(
 )
 
 async function handleCreate(data: NewEntry): Promise<void> {
-  await addEntry(data)
+  await addEntry(data, props.userId)
 }
 
 async function handleUpdate(id: number, data: UpdateEntry): Promise<void> {
-  await editEntry(id, data)
+  await editEntry(id, data, props.userId)
 }
 
 async function handleDelete(id: number): Promise<void> {
-  await removeEntry(id)
+  await removeEntry(id, props.userId)
 }
 </script>
 

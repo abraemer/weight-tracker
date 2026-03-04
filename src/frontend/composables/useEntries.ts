@@ -36,41 +36,42 @@ export function useEntries(userId: number | null) {
     }
   }
 
-  async function addEntry(data: NewEntry): Promise<Entry | null> {
-    if (userId === null) return null
-    const opKey = `add-${userId}`
+  async function addEntry(data: NewEntry, targetUserId?: number): Promise<Entry | null> {
+    const effectiveUserId = targetUserId ?? userId
+    if (effectiveUserId === null) return null
+    const opKey = `add-${effectiveUserId}`
     operationLoading.value.set(opKey, true)
     error.value = null
 
     const tempId = -Date.now()
     const tempEntry: Entry = {
       id: tempId,
-      user_id: userId,
+      user_id: effectiveUserId,
       timestamp: data.timestamp,
       weight_kg: data.weight_kg,
       created_at: new Date().toISOString(),
     }
 
-    const userEntries = entriesByUser.value.get(userId) ?? []
+    const userEntries = entriesByUser.value.get(effectiveUserId) ?? []
     const previousEntries = [...userEntries]
     userEntries.unshift(tempEntry)
-    entriesByUser.value.set(userId, [...userEntries])
+    entriesByUser.value.set(effectiveUserId, [...userEntries])
     entries.value = [...userEntries]
 
     try {
-      const entry = await createEntry(userId, data)
-      const currentEntries = entriesByUser.value.get(userId)
+      const entry = await createEntry(effectiveUserId, data)
+      const currentEntries = entriesByUser.value.get(effectiveUserId)
       if (currentEntries) {
         const index = currentEntries.findIndex((e) => e.id === tempId)
         if (index >= 0) {
           currentEntries[index] = entry
-          entriesByUser.value.set(userId, [...currentEntries])
+          entriesByUser.value.set(effectiveUserId, [...currentEntries])
           entries.value = [...currentEntries]
         }
       }
       return entry
     } catch (e) {
-      entriesByUser.value.set(userId, previousEntries)
+      entriesByUser.value.set(effectiveUserId, previousEntries)
       entries.value = previousEntries
       error.value = e instanceof Error ? e.message : 'Failed to create entry'
       return null
@@ -79,13 +80,18 @@ export function useEntries(userId: number | null) {
     }
   }
 
-  async function editEntry(id: number, data: UpdateEntry): Promise<Entry | null> {
-    if (userId === null) return null
+  async function editEntry(
+    id: number,
+    data: UpdateEntry,
+    targetUserId?: number
+  ): Promise<Entry | null> {
+    const effectiveUserId = targetUserId ?? userId
+    if (effectiveUserId === null) return null
     const opKey = `edit-${id}`
     operationLoading.value.set(opKey, true)
     error.value = null
 
-    const userEntries = entriesByUser.value.get(userId)
+    const userEntries = entriesByUser.value.get(effectiveUserId)
     const previousEntries = userEntries ? [...userEntries] : []
     const existingIndex = userEntries?.findIndex((e) => e.id === id)
 
@@ -94,24 +100,24 @@ export function useEntries(userId: number | null) {
         ...userEntries[existingIndex]!,
         ...data,
       }
-      entriesByUser.value.set(userId, [...userEntries])
+      entriesByUser.value.set(effectiveUserId, [...userEntries])
       entries.value = [...userEntries]
     }
 
     try {
       const entry = await updateEntry(id, data)
-      const currentEntries = entriesByUser.value.get(userId)
+      const currentEntries = entriesByUser.value.get(effectiveUserId)
       if (currentEntries) {
         const index = currentEntries.findIndex((e) => e.id === id)
         if (index >= 0) {
           currentEntries[index] = entry
-          entriesByUser.value.set(userId, [...currentEntries])
+          entriesByUser.value.set(effectiveUserId, [...currentEntries])
           entries.value = [...currentEntries]
         }
       }
       return entry
     } catch (e) {
-      entriesByUser.value.set(userId, previousEntries)
+      entriesByUser.value.set(effectiveUserId, previousEntries)
       entries.value = previousEntries
       error.value = e instanceof Error ? e.message : 'Failed to update entry'
       return null
@@ -120,18 +126,19 @@ export function useEntries(userId: number | null) {
     }
   }
 
-  async function removeEntry(id: number): Promise<boolean> {
-    if (userId === null) return false
+  async function removeEntry(id: number, targetUserId?: number): Promise<boolean> {
+    const effectiveUserId = targetUserId ?? userId
+    if (effectiveUserId === null) return false
     const opKey = `delete-${id}`
     operationLoading.value.set(opKey, true)
     error.value = null
 
-    const userEntries = entriesByUser.value.get(userId)
+    const userEntries = entriesByUser.value.get(effectiveUserId)
     const previousEntries = userEntries ? [...userEntries] : []
 
     if (userEntries) {
       const filtered = userEntries.filter((e) => e.id !== id)
-      entriesByUser.value.set(userId, filtered)
+      entriesByUser.value.set(effectiveUserId, filtered)
       entries.value = filtered
     }
 
@@ -139,7 +146,7 @@ export function useEntries(userId: number | null) {
       await deleteEntry(id)
       return true
     } catch (e) {
-      entriesByUser.value.set(userId, previousEntries)
+      entriesByUser.value.set(effectiveUserId, previousEntries)
       entries.value = previousEntries
       error.value = e instanceof Error ? e.message : 'Failed to delete entry'
       return false
