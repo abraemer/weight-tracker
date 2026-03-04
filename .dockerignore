@@ -1,0 +1,17 @@
+node_modules
+dist
+.git
+.gitignore
+*.md
+.env
+.env.*
+!.env.example
+tests
+coverage
+*.log
+.DS_Store
+Thumbs.db
+.idea
+.vscode
+*.swp
+*.swo

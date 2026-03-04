@@ -6,8 +6,9 @@
 
         <UserTabs
           v-if="users.length > 0"
-          v-model="activeUserId!"
+          :model-value="activeUserId!"
           :users="users"
+          @update:model-value="setActiveUser"
           @add-user="showAddDialog = true"
         />
 

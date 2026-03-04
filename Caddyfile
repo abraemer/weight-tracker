@@ -1,0 +1,17 @@
+{
+	email admin@example.com
+}
+
+weight-tracker.example.com {
+	encode gzip
+
+	root * /app/frontend
+
+	@api {
+		path /api/*
+	}
+
+	reverse_proxy @api backend:3000
+
+	file_server
+}

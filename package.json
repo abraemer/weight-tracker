@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "vite",
     "dev:server": "tsx watch src/backend/server.ts",
-    "build": "tsc --outDir dist/backend --declaration --declarationMap && vite build",
+    "build": "tsc --project tsconfig.backend.json && vite build",
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",

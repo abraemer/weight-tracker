@@ -203,21 +203,21 @@
 
 ### 8.1 Build configuration
 
-- [ ] Create build scripts for backend compilation (output to `dist/backend/`)
-- [ ] Configure Vite build output (to `dist/frontend/`)
-- [ ] Ensure production dependencies only in Docker
+- [x] Create build scripts for backend compilation (output to `dist/backend/`)
+- [x] Configure Vite build output (to `dist/frontend/`)
+- [x] Ensure production dependencies only in Docker
 
 ### 8.2 Docker setup
 
-- [ ] Create `Dockerfile` (node:20-alpine, production dependencies only)
-- [ ] Create `.dockerignore`
-- [ ] Test container build
-- [ ] Create sample Caddyfile for reverse proxy + static file serving
+- [x] Create `Dockerfile` (node:20-alpine, production dependencies only)
+- [x] Create `.dockerignore`
+- [x] Test container build
+- [x] Create sample Caddyfile for reverse proxy + static file serving
 
 ### 8.3 Documentation
 
-- [ ] Update README with setup instructions
-- [ ] Document deployment process
+- [x] Update README with setup instructions
+- [x] Document deployment process
 
 ## Execution Order
 
