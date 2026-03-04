@@ -106,8 +106,12 @@ function calculateTrendline(entries: Entry[]): TrendlineData | null {
 }
 
 function getTrendlinePoints(trendline: TrendlineData): { x: number; y: number }[] {
-  const startX = trendline.startDate.getTime()
-  const endX = trendline.endDate.getTime()
+  const now = new Date()
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+  const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+  const startX = thirtyDaysAgo.getTime()
+  const endX = thirtyDaysFromNow.getTime()
 
   return [
     { x: startX, y: trendline.slope * startX + trendline.intercept },
@@ -156,8 +160,9 @@ const chartData = computed(() => {
 
   if (trendline.value && showTrendline.value) {
     const trendPoints = getTrendlinePoints(trendline.value)
+    const slopeGPer30Days = Math.round(trendline.value.slope * 1000 * 30)
     datasets.push({
-      label: 'Trend (30-day)',
+      label: `Trend (${slopeGPer30Days} g/30d)`,
       data: trendPoints,
       borderColor: 'rgb(211, 47, 47)',
       backgroundColor: 'transparent',
@@ -173,6 +178,8 @@ const chartData = computed(() => {
 
 const xAxisRange = computed(() => {
   const now = new Date()
+  const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
+
   if (sortedEntries.value.length === 0) {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
     return { min: thirtyDaysAgo.getTime(), max: now.getTime() }
@@ -184,7 +191,10 @@ const xAxisRange = computed(() => {
   const range = maxTime - minTime
   const padding = range > 0 ? range * 0.1 : 7 * 24 * 60 * 60 * 1000
 
-  return { min: minTime - padding, max: maxTime + padding }
+  const minWithPadding = minTime - padding
+  const min = Math.max(oneYearAgo.getTime(), minWithPadding)
+
+  return { min, max: maxTime + padding }
 })
 
 const chartOptions = computed(() => ({
