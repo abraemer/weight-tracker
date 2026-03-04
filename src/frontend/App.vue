@@ -15,9 +15,7 @@
           <v-progress-circular indeterminate />
         </div>
 
-        <div v-else-if="activeUser" class="mt-4">
-          <p>User: {{ activeUser.name }}</p>
-        </div>
+        <UserView v-else-if="activeUser" :user-id="activeUser.id" class="mt-4" />
       </v-container>
     </v-main>
 
@@ -35,6 +33,7 @@ import { useUsers } from './composables/useUsers.js'
 import { setErrorHandler } from './api.js'
 import UserTabs from './components/UserTabs.vue'
 import AddUserDialog from './components/AddUserDialog.vue'
+import UserView from './components/UserView.vue'
 
 const { users, activeUserId, activeUser, loading, loadUsers, addUser, setActiveUser } = useUsers()
 

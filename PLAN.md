@@ -118,28 +118,28 @@
 
 ### 5.1 WeightTable component
 
-- [ ] Create scrollable table layout
-- [ ] Display entries sorted by timestamp descending
-- [ ] Show date, time, and weight columns
-- [ ] Add empty state message
+- [x] Create scrollable table layout
+- [x] Display entries sorted by timestamp descending
+- [x] Show date, time, and weight columns
+- [x] Add empty state message
 
 ### 5.2 New entry row
 
-- [ ] Add input row at top of table
-- [ ] Default timestamp to current local time
-- [ ] Implement save functionality
+- [x] Add input row at top of table
+- [x] Default timestamp to current local time
+- [x] Implement save functionality
 
 ### 5.3 EntryRow component
 
-- [ ] Display single entry
-- [ ] Implement inline editing
-- [ ] Add delete button
-- [ ] Show confirmation dialog on delete
+- [x] Display single entry
+- [x] Implement inline editing
+- [x] Add delete button
+- [x] Show confirmation dialog on delete
 
 ### 5.4 UserView component
 
-- [ ] Create two-column layout (table left, chart right)
-- [ ] Implement responsive layout for mobile (< 768px: table above, chart below)
+- [x] Create two-column layout (table left, chart right)
+- [x] Implement responsive layout for mobile (< 768px: table above, chart below)
 
 ## Phase 6: Chart Visualization
 
