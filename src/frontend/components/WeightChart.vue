@@ -96,13 +96,18 @@ function calculateTrendline(entries: Entry[]): TrendlineData | null {
     sumXX += point.x * point.x
   }
 
-  const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX)
-  const intercept = (sumY - slope * sumX) / n
+  const slopeKgPerMs = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX)
+  const intercept = (sumY - slopeKgPerMs * sumX) / n
 
   const startDate = new Date(minTime)
   const endDate = new Date(maxTime + 30 * 24 * 60 * 60 * 1000)
 
-  return { slope, intercept, startDate, endDate }
+  return {
+    slope: slopeKgPerMs,
+    intercept,
+    startDate,
+    endDate,
+  }
 }
 
 function getTrendlinePoints(trendline: TrendlineData): { x: number; y: number }[] {
@@ -160,7 +165,8 @@ const chartData = computed(() => {
 
   if (trendline.value && showTrendline.value) {
     const trendPoints = getTrendlinePoints(trendline.value)
-    const slopeGPer30Days = Math.round(trendline.value.slope * 1000 * 30)
+    const msPer30Days = 30 * 24 * 60 * 60 * 1000
+    const slopeGPer30Days = Math.round(trendline.value.slope * 1000 * msPer30Days)
     datasets.push({
       label: `Trend (${slopeGPer30Days} g/30d)`,
       data: trendPoints,
