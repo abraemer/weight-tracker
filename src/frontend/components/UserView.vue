@@ -10,13 +10,7 @@
         />
       </div>
       <div class="user-view__chart">
-        <v-card>
-          <v-card-title>Weight Chart</v-card-title>
-          <v-card-text class="text-center text-medium-emphasis py-8">
-            <v-icon size="64" color="grey-lighten-1">mdi-chart-line</v-icon>
-            <p class="mt-4">Chart coming in Phase 6</p>
-          </v-card-text>
-        </v-card>
+        <WeightChart :entries="entries" />
       </div>
     </div>
   </div>
@@ -25,6 +19,7 @@
 <script setup lang="ts">
 import { watch } from 'vue'
 import { useEntries } from '../composables/useEntries.js'
+import WeightChart from './WeightChart.vue'
 import WeightTable from './WeightTable.vue'
 import type { NewEntry, UpdateEntry } from '../types/index.js'
 

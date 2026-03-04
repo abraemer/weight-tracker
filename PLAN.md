@@ -145,24 +145,24 @@
 
 ### 6.1 WeightChart component
 
-- [ ] Set up Chart.js with vue-chartjs
-- [ ] Create line chart with weight vs time
-- [ ] Handle empty data state
-- [ ] Make chart responsive
+- [x] Set up Chart.js with vue-chartjs
+- [x] Create line chart with weight vs time
+- [x] Handle empty data state
+- [x] Make chart responsive
 
 ### 6.2 Chart interactivity
 
-- [ ] Add zoom/pan support (chartjs-plugin-zoom)
-- [ ] Set default view to last 1 year
+- [x] Add zoom/pan support (chartjs-plugin-zoom)
+- [x] Set default view to last 1 year
 
 ### 6.3 Trendline feature
 
-- [ ] Filter entries from past 30 days for trendline calculation
-- [ ] Hide trendline if less than 30 days of data
-- [ ] Calculate linear regression: slope (m) and intercept (b)
-- [ ] Draw trendline on chart (dashed, different color)
-- [ ] Extend trendline 1 month into future
-- [ ] Add legend entry indicating it's a trend
+- [x] Filter entries from past 30 days for trendline calculation
+- [x] Hide trendline if less than 30 days of data
+- [x] Calculate linear regression: slope (m) and intercept (b)
+- [x] Draw trendline on chart (dashed, different color)
+- [x] Extend trendline 1 month into future
+- [x] Add legend entry indicating it's a trend
 
 ## Phase 7: Integration & Polish
 
