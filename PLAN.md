@@ -3,6 +3,7 @@
 ## Phase 1: Project Setup
 
 ### 1.1 Initialize Node.js project
+
 - [x] Create `package.json` with yarn
 - [x] Configure TypeScript (`tsconfig.json`)
 - [x] Set up ESLint configuration
@@ -10,15 +11,18 @@
 - [x] Create basic folder structure
 
 ### 1.2 Configure Vite for frontend
+
 - [x] Add Vite configuration
 - [x] Configure Vue 3 + Vuetify 3 plugin
 - [x] Set up proxy for `/api` to backend
 
 ### 1.3 Set up Vitest
+
 - [x] Configure Vitest for both frontend and backend tests
 - [x] Add test scripts to `package.json`
 
 ### 1.4 Create environment configuration
+
 - [x] Add `.env` file support
 - [x] Document environment variables in `.env.example`
 - [x] PORT (default: 3000)
@@ -27,6 +31,7 @@
 ## Phase 2: Backend Foundation
 
 ### 2.1 Database setup
+
 - [x] Create SQLite connection module (`src/backend/db/database.ts`)
 - [x] Write schema SQL (`src/backend/db/schema.sql`) with tables and indexes
 - [x] Create index `idx_entries_user_id` on entries(user_id)
@@ -36,6 +41,7 @@
 - [x] Store timestamps as UTC (ISO 8601 format)
 
 ### 2.2 Basic server setup
+
 - [x] Create Express server (`src/backend/server.ts`)
 - [x] Add JSON body parser
 - [x] Configure CORS for development
@@ -46,17 +52,20 @@
 - [x] Use JSON error format: `{ "error": "message" }`
 
 ### 2.3 User routes
+
 - [x] GET `/api/users` - list all users
 - [x] POST `/api/users` - create user (validate: non-empty name)
 - [x] GET `/api/users/:id` - get user by ID
 
 ### 2.4 Entry routes
+
 - [x] GET `/api/users/:userId/entries` - list entries for user
 - [x] POST `/api/users/:userId/entries` - create entry (allow duplicates, accept any positive weight)
 - [x] PUT `/api/entries/:id` - update entry
 - [x] DELETE `/api/entries/:id` - delete entry
 
 ### 2.5 Backend tests
+
 - [x] Set up in-memory SQLite for integration tests
 - [x] Test user routes
 - [x] Test entry routes
@@ -65,35 +74,42 @@
 ## Phase 3: Frontend Foundation
 
 ### 3.1 Vue app setup
+
 - [x] Create `main.ts` entry point
 - [x] Set up Vuetify with default theme
 - [x] Create `App.vue` root component
 
 ### 3.2 Type definitions
-- [ ] Create frontend types (`src/frontend/types/index.ts`)
+
+- [x] Create frontend types (`src/frontend/types/index.ts`)
 
 ### 3.3 API client
-- [ ] Create API utility functions (`src/frontend/api.ts`)
-- [ ] Implement error handling with snackbar
-- [ ] Add timezone conversion utilities (UTC ↔ local time)
+
+- [x] Create API utility functions (`src/frontend/api.ts`)
+- [x] Implement error handling with snackbar
+- [x] Add timezone conversion utilities (UTC ↔ local time)
 
 ### 3.4 Composables
-- [ ] Create `useUsers.ts` composable
-- [ ] Create `useEntries.ts` composable
+
+- [x] Create `useUsers.ts` composable
+- [x] Create `useEntries.ts` composable
 
 ## Phase 4: User Management UI
 
 ### 4.1 UserTabs component
+
 - [ ] Display tabs for each user
 - [ ] Implement tab selection
 - [ ] Add horizontal scrolling for many users
 
 ### 4.2 AddUserDialog component
+
 - [ ] Create dialog with name input
 - [ ] Add validation (non-empty)
 - [ ] Emit create event
 
 ### 4.3 Integrate user management
+
 - [ ] Show "Add User" dialog on first load if no users
 - [ ] Switch active user on tab click
 - [ ] Add "+" tab button
@@ -101,39 +117,46 @@
 ## Phase 5: Entry Management UI
 
 ### 5.1 WeightTable component
+
 - [ ] Create scrollable table layout
 - [ ] Display entries sorted by timestamp descending
 - [ ] Show date, time, and weight columns
 - [ ] Add empty state message
 
 ### 5.2 New entry row
+
 - [ ] Add input row at top of table
 - [ ] Default timestamp to current local time
 - [ ] Implement save functionality
 
 ### 5.3 EntryRow component
+
 - [ ] Display single entry
 - [ ] Implement inline editing
 - [ ] Add delete button
 - [ ] Show confirmation dialog on delete
 
 ### 5.4 UserView component
+
 - [ ] Create two-column layout (table left, chart right)
 - [ ] Implement responsive layout for mobile (< 768px: table above, chart below)
 
 ## Phase 6: Chart Visualization
 
 ### 6.1 WeightChart component
+
 - [ ] Set up Chart.js with vue-chartjs
 - [ ] Create line chart with weight vs time
 - [ ] Handle empty data state
 - [ ] Make chart responsive
 
 ### 6.2 Chart interactivity
+
 - [ ] Add zoom/pan support (chartjs-plugin-zoom)
 - [ ] Set default view to last 1 year
 
 ### 6.3 Trendline feature
+
 - [ ] Filter entries from past 30 days for trendline calculation
 - [ ] Hide trendline if less than 30 days of data
 - [ ] Calculate linear regression: slope (m) and intercept (b)
@@ -144,6 +167,7 @@
 ## Phase 7: Integration & Polish
 
 ### 7.1 Error handling
+
 - [ ] Add snackbar notifications for errors
 - [ ] Implement optimistic updates with rollback
 - [ ] Form validation before submit (all forms)
@@ -151,39 +175,47 @@
 ## Validation Rules Summary
 
 ### User validation
+
 - Name: non-empty (no max length)
 
-### Entry validation  
+### Entry validation
+
 - Timestamp: required (stored as UTC)
 - Weight: any positive number (no limits)
 - Duplicates: allowed (same user can have multiple entries at same timestamp)
 
 ### Confirmation dialogs
+
 - Delete entry: requires confirmation
 - Add/edit/cancel: no confirmation required
 
 ### 7.2 Loading states
+
 - [ ] Add loading indicators
 - [ ] Disable actions during API calls
 
 ### 7.3 Frontend tests
+
 - [ ] Test composables
 - [ ] Test component interactions
 
 ## Phase 8: Docker & Deployment
 
 ### 8.1 Build configuration
+
 - [ ] Create build scripts for backend compilation (output to `dist/backend/`)
 - [ ] Configure Vite build output (to `dist/frontend/`)
 - [ ] Ensure production dependencies only in Docker
 
 ### 8.2 Docker setup
+
 - [ ] Create `Dockerfile` (node:20-alpine, production dependencies only)
 - [ ] Create `.dockerignore`
 - [ ] Test container build
 - [ ] Create sample Caddyfile for reverse proxy + static file serving
 
 ### 8.3 Documentation
+
 - [ ] Update README with setup instructions
 - [ ] Document deployment process
 
