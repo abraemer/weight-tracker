@@ -7,6 +7,13 @@ const activeUserId = ref<number | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 
+export function resetUsersState(): void {
+  users.value = []
+  activeUserId.value = null
+  loading.value = false
+  error.value = null
+}
+
 export function useUsers() {
   const activeUser = computed(() => {
     if (activeUserId.value === null) return null

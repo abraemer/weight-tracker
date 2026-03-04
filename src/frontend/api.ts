@@ -5,23 +5,29 @@ export function localToUtc(localDateTime: string): string {
   return date.toISOString()
 }
 
+function formatDateParts(date: Date): {
+  year: string
+  month: string
+  day: string
+  hours: string
+  minutes: string
+} {
+  return {
+    year: String(date.getFullYear()),
+    month: String(date.getMonth() + 1).padStart(2, '0'),
+    day: String(date.getDate()).padStart(2, '0'),
+    hours: String(date.getHours()).padStart(2, '0'),
+    minutes: String(date.getMinutes()).padStart(2, '0'),
+  }
+}
+
 export function utcToLocal(utcTimestamp: string): string {
-  const date = new Date(utcTimestamp)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const { year, month, day, hours, minutes } = formatDateParts(new Date(utcTimestamp))
   return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 
 export function formatLocalDateTime(utcTimestamp: string): { date: string; time: string } {
-  const date = new Date(utcTimestamp)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hours = String(date.getHours()).padStart(2, '0')
-  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const { year, month, day, hours, minutes } = formatDateParts(new Date(utcTimestamp))
   return {
     date: `${year}-${month}-${day}`,
     time: `${hours}:${minutes}`,
@@ -29,12 +35,7 @@ export function formatLocalDateTime(utcTimestamp: string): { date: string; time:
 }
 
 export function getCurrentLocalDateTime(): string {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  const hours = String(now.getHours()).padStart(2, '0')
-  const minutes = String(now.getMinutes()).padStart(2, '0')
+  const { year, month, day, hours, minutes } = formatDateParts(new Date())
   return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 

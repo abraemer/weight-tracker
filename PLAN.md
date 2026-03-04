@@ -168,9 +168,9 @@
 
 ### 7.1 Error handling
 
-- [ ] Add snackbar notifications for errors
-- [ ] Implement optimistic updates with rollback
-- [ ] Form validation before submit (all forms)
+- [x] Add snackbar notifications for errors
+- [x] Implement optimistic updates with rollback
+- [x] Form validation before submit (all forms)
 
 ## Validation Rules Summary
 
@@ -191,13 +191,13 @@
 
 ### 7.2 Loading states
 
-- [ ] Add loading indicators
-- [ ] Disable actions during API calls
+- [x] Add loading indicators
+- [x] Disable actions during API calls
 
 ### 7.3 Frontend tests
 
-- [ ] Test composables
-- [ ] Test component interactions
+- [x] Test composables
+- [x] Test component interactions
 
 ## Phase 8: Docker & Deployment
 

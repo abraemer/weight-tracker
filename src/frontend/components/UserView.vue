@@ -1,9 +1,13 @@
 <template>
   <div class="user-view">
-    <div class="user-view__content">
+    <div v-if="loading" class="d-flex justify-center my-4">
+      <v-progress-circular indeterminate />
+    </div>
+    <div v-else class="user-view__content">
       <div class="user-view__table">
         <WeightTable
           :entries="entries"
+          :saving="isSaving"
           @create="handleCreate"
           @update="handleUpdate"
           @delete="handleDelete"
@@ -17,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { watch } from 'vue'
+import { watch, computed } from 'vue'
 import { useEntries } from '../composables/useEntries.js'
 import WeightChart from './WeightChart.vue'
 import WeightTable from './WeightTable.vue'
@@ -27,7 +31,12 @@ const props = defineProps<{
   userId: number
 }>()
 
-const { entries, loadEntries, addEntry, editEntry, removeEntry } = useEntries(props.userId)
+const { entries, loading, loadEntries, addEntry, editEntry, removeEntry, isOperationLoading } =
+  useEntries(props.userId)
+
+const isSaving = computed(() => {
+  return isOperationLoading(`add-${props.userId}`)
+})
 
 watch(() => props.userId, loadEntries, { immediate: true })
 

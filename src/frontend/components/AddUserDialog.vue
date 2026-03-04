@@ -8,11 +8,12 @@
     <v-card>
       <v-card-title>Add User</v-card-title>
       <v-card-text>
-        <v-form @submit.prevent="handleSubmit">
+        <v-form ref="form" @submit.prevent="handleSubmit">
           <v-text-field
             v-model="name"
             label="Name"
             :error-messages="error"
+            :disabled="saving"
             autofocus
             @update:model-value="error = ''"
           />
@@ -20,8 +21,14 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn variant="text" @click="handleCancel"> Cancel </v-btn>
-        <v-btn color="primary" variant="flat" :disabled="!name.trim()" @click="handleSubmit">
+        <v-btn variant="text" :disabled="saving" @click="handleCancel"> Cancel </v-btn>
+        <v-btn
+          color="primary"
+          variant="flat"
+          :disabled="!name.trim() || saving"
+          :loading="saving"
+          @click="handleSubmit"
+        >
           Create
         </v-btn>
       </v-card-actions>
@@ -43,6 +50,7 @@ const emit = defineEmits<{
 
 const name = ref('')
 const error = ref('')
+const saving = ref(false)
 
 function handleSubmit(): void {
   const trimmedName = name.value.trim()
@@ -50,7 +58,9 @@ function handleSubmit(): void {
     error.value = 'Name is required'
     return
   }
+  saving.value = true
   emit('create', trimmedName)
+  saving.value = false
   name.value = ''
   error.value = ''
 }

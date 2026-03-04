@@ -10,6 +10,7 @@
         density="compact"
         variant="outlined"
         hide-details
+        :error="validationErrors.date"
       />
     </td>
     <td v-if="isEditing">
@@ -19,6 +20,7 @@
         density="compact"
         variant="outlined"
         hide-details
+        :error="validationErrors.time"
       />
     </td>
     <td v-if="isEditing">
@@ -29,14 +31,30 @@
         variant="outlined"
         hide-details
         step="0.1"
+        :error="validationErrors.weight"
       />
     </td>
     <td class="text-right" style="white-space: nowrap">
       <template v-if="!isEditing">
-        <v-btn icon size="small" variant="text" @click="startEdit">
+        <v-btn
+          icon
+          size="small"
+          variant="text"
+          :disabled="saving"
+          :loading="saving && isSavingEdit"
+          @click="startEdit"
+        >
           <v-icon>mdi-pencil</v-icon>
         </v-btn>
-        <v-btn icon size="small" variant="text" color="error" @click="showDeleteDialog = true">
+        <v-btn
+          icon
+          size="small"
+          variant="text"
+          color="error"
+          :disabled="saving"
+          :loading="saving && !isSavingEdit"
+          @click="showDeleteDialog = true"
+        >
           <v-icon>mdi-delete</v-icon>
         </v-btn>
       </template>
@@ -71,8 +89,16 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn variant="text" @click="showDeleteDialog = false">Cancel</v-btn>
-        <v-btn color="error" variant="flat" @click="confirmDelete">Delete</v-btn>
+        <v-btn variant="text" :disabled="saving" @click="showDeleteDialog = false">Cancel</v-btn>
+        <v-btn
+          color="error"
+          variant="flat"
+          :loading="saving"
+          :disabled="saving"
+          @click="confirmDelete"
+        >
+          Delete
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -85,6 +111,7 @@ import type { Entry, UpdateEntry } from '../types/index.js'
 
 const props = defineProps<{
   entry: Entry
+  saving?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -93,6 +120,7 @@ const emit = defineEmits<{
 }>()
 
 const isEditing = ref(false)
+const isSavingEdit = ref(false)
 const editDate = ref('')
 const editTime = ref('')
 const editWeight = ref(0)
@@ -100,6 +128,12 @@ const showDeleteDialog = ref(false)
 
 const formattedDate = computed(() => formatLocalDateTime(props.entry.timestamp).date)
 const formattedTime = computed(() => formatLocalDateTime(props.entry.timestamp).time)
+
+const validationErrors = computed(() => ({
+  date: isEditing.value && !editDate.value,
+  time: isEditing.value && !editTime.value,
+  weight: isEditing.value && editWeight.value <= 0,
+}))
 
 const isValid = computed(() => {
   return editDate.value && editTime.value && editWeight.value > 0
@@ -112,14 +146,17 @@ function startEdit(): void {
   editTime.value = parts[1] ?? ''
   editWeight.value = props.entry.weight_kg
   isEditing.value = true
+  isSavingEdit.value = false
 }
 
 function cancelEdit(): void {
   isEditing.value = false
+  isSavingEdit.value = false
 }
 
 function saveEdit(): void {
   if (!isValid.value) return
+  isSavingEdit.value = true
   const localDateTime = `${editDate.value}T${editTime.value}`
   const utcTimestamp = localToUtc(localDateTime)
   emit('update', props.entry.id, {
@@ -130,6 +167,7 @@ function saveEdit(): void {
 }
 
 function confirmDelete(): void {
+  isSavingEdit.value = false
   showDeleteDialog.value = false
   emit('delete', props.entry.id)
 }

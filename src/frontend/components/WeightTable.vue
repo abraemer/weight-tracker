@@ -26,6 +26,7 @@
               density="compact"
               variant="outlined"
               hide-details
+              :error="validationErrors.date"
             />
           </td>
           <td>
@@ -35,6 +36,7 @@
               density="compact"
               variant="outlined"
               hide-details
+              :error="validationErrors.time"
             />
           </td>
           <td>
@@ -45,6 +47,7 @@
               variant="outlined"
               hide-details
               step="0.1"
+              :error="validationErrors.weight"
               @keyup.enter="saveNewEntry"
             />
           </td>
@@ -60,7 +63,7 @@
             >
               <v-icon>mdi-check</v-icon>
             </v-btn>
-            <v-btn icon size="small" variant="text" @click="cancelNewEntry">
+            <v-btn icon size="small" variant="text" :disabled="saving" @click="cancelNewEntry">
               <v-icon>mdi-close</v-icon>
             </v-btn>
           </td>
@@ -70,6 +73,7 @@
           v-for="entry in sortedEntries"
           :key="entry.id"
           :entry="entry"
+          :saving="isEntrySaving(entry.id)"
           @update="handleUpdate"
           @delete="handleDelete"
         />
@@ -92,6 +96,7 @@ import EntryRow from './EntryRow.vue'
 
 const props = defineProps<{
   entries: Entry[]
+  saving?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -104,7 +109,8 @@ const showNewRow = ref(false)
 const newDate = ref('')
 const newTime = ref('')
 const newWeight = ref<number | null>(null)
-const saving = ref(false)
+const savingInternal = ref(false)
+const savingEntries = ref(new Set<number>())
 
 const sortedEntries = computed(() => {
   return [...props.entries].sort(
@@ -112,9 +118,19 @@ const sortedEntries = computed(() => {
   )
 })
 
+const validationErrors = computed(() => ({
+  date: showNewRow.value && !newDate.value,
+  time: showNewRow.value && !newTime.value,
+  weight: showNewRow.value && (newWeight.value === null || newWeight.value <= 0),
+}))
+
 const isNewValid = computed(() => {
   return newDate.value && newTime.value && newWeight.value !== null && newWeight.value > 0
 })
+
+function isEntrySaving(id: number): boolean {
+  return savingEntries.value.has(id)
+}
 
 function addNewRow(): void {
   const now = getCurrentLocalDateTime()
@@ -138,12 +154,12 @@ async function saveNewEntry(): Promise<void> {
   const localDateTime = `${newDate.value}T${newTime.value}`
   const utcTimestamp = localToUtc(localDateTime)
 
-  saving.value = true
+  savingInternal.value = true
   emit('create', {
     timestamp: utcTimestamp,
     weight_kg: newWeight.value,
   })
-  saving.value = false
+  savingInternal.value = false
   showNewRow.value = false
   newDate.value = ''
   newTime.value = ''
@@ -151,11 +167,15 @@ async function saveNewEntry(): Promise<void> {
 }
 
 function handleUpdate(id: number, data: UpdateEntry): void {
+  savingEntries.value.add(id)
   emit('update', id, data)
+  window.setTimeout(() => savingEntries.value.delete(id), 1000)
 }
 
 function handleDelete(id: number): void {
+  savingEntries.value.add(id)
   emit('delete', id)
+  window.setTimeout(() => savingEntries.value.delete(id), 1000)
 }
 </script>
 
