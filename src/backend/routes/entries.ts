@@ -1,10 +1,11 @@
 import express from 'express'
-import db from '../db/database.js'
+import { getDb } from '../db/database.js'
 import type { Entry, NewEntry, UpdateEntry } from '../types/index.js'
 
 const router = express.Router()
 
 router.get('/users/:userId/entries', (req, res) => {
+  const db = getDb()
   const entries = db
     .prepare('SELECT * FROM entries WHERE user_id = ? ORDER BY timestamp DESC')
     .all(req.params.userId) as Entry[]
@@ -12,6 +13,7 @@ router.get('/users/:userId/entries', (req, res) => {
 })
 
 router.post('/users/:userId/entries', (req, res) => {
+  const db = getDb()
   const { timestamp, weight_kg } = req.body as NewEntry
   const userId = parseInt(req.params.userId, 10)
 
@@ -38,6 +40,7 @@ router.post('/users/:userId/entries', (req, res) => {
 })
 
 router.put('/entries/:id', (req, res) => {
+  const db = getDb()
   const { timestamp, weight_kg } = req.body as UpdateEntry
   const id = parseInt(req.params.id, 10)
 
@@ -75,6 +78,7 @@ router.put('/entries/:id', (req, res) => {
 })
 
 router.delete('/entries/:id', (req, res) => {
+  const db = getDb()
   const id = parseInt(req.params.id, 10)
   const existing = db.prepare('SELECT * FROM entries WHERE id = ?').get(id)
   if (!existing) {

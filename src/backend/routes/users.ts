@@ -1,15 +1,17 @@
 import express from 'express'
-import db from '../db/database.js'
+import { getDb } from '../db/database.js'
 import type { User, NewUser } from '../types/index.js'
 
 const router = express.Router()
 
 router.get('/', (_req, res) => {
+  const db = getDb()
   const users = db.prepare('SELECT * FROM users ORDER BY created_at ASC').all() as User[]
   res.json(users)
 })
 
 router.get('/:id', (req, res) => {
+  const db = getDb()
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id) as User | undefined
   if (!user) {
     res.status(404).json({ error: 'User not found' })
@@ -19,6 +21,7 @@ router.get('/:id', (req, res) => {
 })
 
 router.post('/', (req, res) => {
+  const db = getDb()
   const { name } = req.body as NewUser
   if (!name || typeof name !== 'string' || name.trim() === '') {
     res.status(400).json({ error: 'Name is required and must be non-empty' })

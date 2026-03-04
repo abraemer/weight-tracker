@@ -57,10 +57,10 @@
 - [x] DELETE `/api/entries/:id` - delete entry
 
 ### 2.5 Backend tests
-- [ ] Set up in-memory SQLite for integration tests
-- [ ] Test user routes
-- [ ] Test entry routes
-- [ ] Test edge cases (not found, validation errors)
+- [x] Set up in-memory SQLite for integration tests
+- [x] Test user routes
+- [x] Test entry routes
+- [x] Test edge cases (not found, validation errors)
 
 ## Phase 3: Frontend Foundation
 
