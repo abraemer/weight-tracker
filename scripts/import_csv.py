@@ -31,7 +31,24 @@ API_URL = "http://localhost:3000/api"
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Import weight entries from CSV")
+    parser = argparse.ArgumentParser(
+        description="Import weight entries from CSV",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+CSV format (header required):
+  date,time,weight
+  2024-01-15,08:30,75.5
+  2024-01-16,09:00,75.2
+
+Date format: YYYY-MM-DD
+Time format: HH:MM (24-hour)
+Weight: number in kg
+
+Examples:
+  uv run scripts/import_csv.py --user "Alice" --file weights.csv --dry-run
+  uv run scripts/import_csv.py --user "Alice" --file weights.csv
+""",
+    )
     parser.add_argument("--user", required=True, help="User name (must exist)")
     parser.add_argument("--file", required=True, help="CSV file to import")
     parser.add_argument(
