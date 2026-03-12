@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "concurrently \"yarn dev:server\" \"vite\"",
     "dev:server": "tsx watch src/backend/server.ts",
-    "build": "tsc --project tsconfig.backend.json && vite build",
+    "build": "tsc --project tsconfig.backend.json && vite build && docker build -t weight-tracker .",
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
