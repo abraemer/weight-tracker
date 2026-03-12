@@ -69,16 +69,18 @@ interface TrendlineData {
 function calculateTrendline(entries: Entry[]): TrendlineData | null {
   if (entries.length < 2) return null
 
-  const timestamps = entries.map((e) => new Date(e.timestamp).getTime())
+  const now = new Date()
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+  const recentEntries = entries.filter((e) => new Date(e.timestamp) >= thirtyDaysAgo)
+
+  if (recentEntries.length < 2) return null
+
+  const timestamps = recentEntries.map((e) => new Date(e.timestamp).getTime())
   const minTime = Math.min(...timestamps)
   const maxTime = Math.max(...timestamps)
-  const daysDiff = (maxTime - minTime) / (24 * 60 * 60 * 1000)
 
-  if (daysDiff < 30) {
-    return null
-  }
-
-  const points = entries.map((e) => ({
+  const points = recentEntries.map((e) => ({
     x: new Date(e.timestamp).getTime(),
     y: e.weight_kg,
   }))

@@ -30,6 +30,11 @@ import requests
 API_URL = "http://localhost:3000/api"
 
 
+def normalize_url(url: str) -> str:
+    """Remove trailing slash from URL."""
+    return url.rstrip("/")
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Import weight entries from CSV",
@@ -66,9 +71,23 @@ Examples:
 
 def get_user_id(name: str, api_url: str) -> int | None:
     """Fetch user ID by name. Returns None if not found."""
-    response = requests.get(f"{api_url}/users")
-    response.raise_for_status()
-    users = response.json()
+    url = f"{api_url}/users"
+    response = None
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        users = response.json()
+    except requests.exceptions.ConnectionError:
+        print(f"Error: Could not connect to {url}", file=sys.stderr)
+        sys.exit(1)
+    except requests.exceptions.Timeout:
+        print(f"Error: Request to {url} timed out", file=sys.stderr)
+        sys.exit(1)
+    except requests.exceptions.JSONDecodeError:
+        print(f"Error: Invalid JSON response from {url}", file=sys.stderr)
+        if response is not None:
+            print(f"Response text: {response.text[:200]}", file=sys.stderr)
+        sys.exit(1)
 
     matching = [u for u in users if u["name"] == name]
     if not matching:
@@ -172,6 +191,7 @@ def import_entries(user_id: int, entries: list[dict], api_url: str):
 
 def main():
     args = parse_args()
+    api_url = normalize_url(args.api_url)
 
     # Check file exists
     if not Path(args.file).exists():
@@ -180,7 +200,7 @@ def main():
 
     # Get user ID
     print(f"Looking up user '{args.user}'...")
-    user_id = get_user_id(args.user, args.api_url)
+    user_id = get_user_id(args.user, api_url)
 
     if user_id is None:
         print(f"Error: User '{args.user}' not found", file=sys.stderr)
@@ -203,7 +223,7 @@ def main():
         print_dry_run(args.user, user_id, entries)
     else:
         print("\nImporting entries...")
-        import_entries(user_id, entries, args.api_url)
+        import_entries(user_id, entries, api_url)
 
 
 if __name__ == "__main__":
