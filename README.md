@@ -9,6 +9,7 @@ A local web application for tracking body weight across multiple users.
 - Interactive chart with zoom/pan
 - Trendline visualization (30+ days of data)
 - Responsive design for desktop and mobile
+- Installable as a Progressive Web App (PWA)
 
 ## Tech Stack
 

@@ -400,3 +400,4 @@ Not in current scope but documented for potential future features:
 - Multiple measurement types (body fat %, etc.)
 - Goal setting and progress indicators
 - Data backup/restore
+- Full offline support with client-side data layer and sync queue
