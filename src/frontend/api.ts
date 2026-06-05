@@ -40,14 +40,40 @@ export function getCurrentLocalDateTime(): string {
 }
 
 let showError: ((message: string) => void) | null = null
+let onSessionExpired: (() => void) | null = null
 
 export function setErrorHandler(handler: (message: string) => void): void {
   showError = handler
 }
 
-function redirectToLogin(): never {
-  window.location.href = window.location.origin + window.location.pathname + window.location.search
+export function setSessionExpiredHandler(handler: () => void): void {
+  onSessionExpired = handler
+}
+
+const SESSION_RELOADED_KEY = 'wt_session_reloaded'
+
+export function isStandalone(): boolean {
+  return window.matchMedia('(display-mode: standalone)').matches || !!(navigator as unknown as { standalone: boolean }).standalone
+}
+
+function handleSessionExpired(): never {
+  if (!window.sessionStorage.getItem(SESSION_RELOADED_KEY)) {
+    window.sessionStorage.setItem(SESSION_RELOADED_KEY, '1')
+    window.location.href = window.location.origin + window.location.pathname + window.location.search
+    throw new Error('Session expired')
+  }
+  window.sessionStorage.removeItem(SESSION_RELOADED_KEY)
+  onSessionExpired?.()
   throw new Error('Session expired')
+}
+
+export async function checkSession(): Promise<boolean> {
+  try {
+    const response = await fetch('/api/health', { redirect: 'manual' })
+    return !isAuthRedirect(response) && response.ok
+  } catch {
+    return false
+  }
 }
 
 function isAuthRedirect(response: Response): boolean {
@@ -58,7 +84,7 @@ function isAuthRedirect(response: Response): boolean {
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
-  if (isAuthRedirect(response)) redirectToLogin()
+  if (isAuthRedirect(response)) handleSessionExpired()
   if (!response.ok) {
     let message = 'An error occurred'
     try {

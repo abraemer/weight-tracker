@@ -18,6 +18,10 @@ if (!isProduction) {
 
 app.use(express.json())
 
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok' })
+})
+
 app.use('/api/users', usersRouter)
 app.use('/api', entriesRouter)
 
