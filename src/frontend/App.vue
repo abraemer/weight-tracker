@@ -25,6 +25,10 @@
     <v-snackbar v-model="snackbar.show" :color="snackbar.color">
       {{ snackbar.message }}
     </v-snackbar>
+
+    <div class="text-center text-caption text-medium-emphasis mt-4 pb-2">
+      {{ buildTime }}
+    </div>
   </v-app>
 </template>
 
@@ -40,6 +44,8 @@ const { users, activeUserId, activeUser, loading, loadUsers, addUser, setActiveU
 
 const showAddDialog = ref(false)
 const hasLoadedOnce = ref(false)
+
+const buildTime = (window as unknown as Record<string, string>).__BUILD_TIME__ || ''
 
 const snackbar = ref({
   show: false,

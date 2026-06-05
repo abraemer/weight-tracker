@@ -7,6 +7,12 @@ export default defineConfig({
   plugins: [
     vue(),
     vuetify({ autoImport: true }),
+    {
+      name: 'build-time',
+      transformIndexHtml(html) {
+        return html.replace('</body>', `<script>window.__BUILD_TIME__ = "${new Date().toISOString()}"</script></body>`)
+      },
+    },
   ],
   resolve: {
     alias: {
