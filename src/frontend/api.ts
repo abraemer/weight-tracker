@@ -45,10 +45,28 @@ export function setErrorHandler(handler: (message: string) => void): void {
   showError = handler
 }
 
+function redirectToLogin(): never {
+  window.location.href = window.location.origin + window.location.pathname + window.location.search
+  throw new Error('Session expired')
+}
+
+function isAuthRedirect(response: Response): boolean {
+  if (response.status === 401 || response.status === 403) return true
+  if (response.type === 'opaqueredirect') return true
+  if (response.redirected && !response.url.includes('/api/')) return true
+  return false
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
+  if (isAuthRedirect(response)) redirectToLogin()
   if (!response.ok) {
-    const errorData = (await response.json()) as ApiError
-    const message = errorData.error || 'An error occurred'
+    let message = 'An error occurred'
+    try {
+      const errorData = (await response.json()) as ApiError
+      message = errorData.error || message
+    } catch {
+      message = `Request failed with status ${response.status}`
+    }
     showError?.(message)
     throw new Error(message)
   }
@@ -58,18 +76,22 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>
 }
 
+async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return fetch(input, { redirect: 'manual', ...init })
+}
+
 export async function fetchUsers(): Promise<User[]> {
-  const response = await fetch('/api/users')
+  const response = await apiFetch('/api/users')
   return handleResponse<User[]>(response)
 }
 
 export async function fetchUser(id: number): Promise<User> {
-  const response = await fetch(`/api/users/${id}`)
+  const response = await apiFetch(`/api/users/${id}`)
   return handleResponse<User>(response)
 }
 
 export async function createUser(data: NewUser): Promise<User> {
-  const response = await fetch('/api/users', {
+  const response = await apiFetch('/api/users', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -78,12 +100,12 @@ export async function createUser(data: NewUser): Promise<User> {
 }
 
 export async function fetchEntries(userId: number): Promise<Entry[]> {
-  const response = await fetch(`/api/users/${userId}/entries`)
+  const response = await apiFetch(`/api/users/${userId}/entries`)
   return handleResponse<Entry[]>(response)
 }
 
 export async function createEntry(userId: number, data: NewEntry): Promise<Entry> {
-  const response = await fetch(`/api/users/${userId}/entries`, {
+  const response = await apiFetch(`/api/users/${userId}/entries`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -92,7 +114,7 @@ export async function createEntry(userId: number, data: NewEntry): Promise<Entry
 }
 
 export async function updateEntry(id: number, data: UpdateEntry): Promise<Entry> {
-  const response = await fetch(`/api/entries/${id}`, {
+  const response = await apiFetch(`/api/entries/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -101,7 +123,7 @@ export async function updateEntry(id: number, data: UpdateEntry): Promise<Entry>
 }
 
 export async function deleteEntry(id: number): Promise<void> {
-  const response = await fetch(`/api/entries/${id}`, {
+  const response = await apiFetch(`/api/entries/${id}`, {
     method: 'DELETE',
   })
   return handleResponse<void>(response)
