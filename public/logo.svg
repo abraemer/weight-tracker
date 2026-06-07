@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>Äskulapstab — health tracker icon</title>
+
+  <!-- Background: rounded square, light blue -->
+  <rect width="512" height="512" fill="#5BB4E0"/>
+
+  <!--
+    Rod of Asclepius (Äskulapstab)
+    One snake winding around a vertical staff.
+
+    Rod:   centered at x=256, y=82..445
+    Snake: amplitude ±55px from rod center, period 160px vertical
+           Peaks (far from rod):
+             R(311,430) → L(201,350) → R(311,270) → L(201,190) → R(311,110) → head
+           Rod crossings (x=256):
+             y=390 (behind)  y=310 (front)  y=230 (behind)  y=150 (front)
+
+    Each segment is drawn as two overlapping strokes:
+      outer: wider, dark blue  → visible border against bg and rod
+      inner: narrower, white   → the snake body fill
+
+    Layering: behind-rod arcs first (under rod), then rod, then front arcs (over rod).
+  -->
+
+  <!-- ── BEHIND-ROD segments ──────────────────────────────────── -->
+
+  <!-- Behind 1: R(311,430) → L(201,350)  [crosses rod at y≈390] -->
+  <path d="M 311 430 C 311 407 201 373 201 350"
+        stroke="#1C6888" stroke-width="26" stroke-linecap="round" fill="none"/>
+  <path d="M 311 430 C 311 407 201 373 201 350"
+        stroke="white"   stroke-width="16" stroke-linecap="round" fill="none"/>
+
+  <!-- Behind 2: R(311,270) → L(201,190)  [crosses rod at y≈230] -->
+  <path d="M 311 270 C 311 247 201 213 201 190"
+        stroke="#1C6888" stroke-width="26" stroke-linecap="round" fill="none"/>
+  <path d="M 311 270 C 311 247 201 213 201 190"
+        stroke="white"   stroke-width="16" stroke-linecap="round" fill="none"/>
+
+  <!-- ── ROD ────────────────────────────────────────────────────── -->
+  <rect x="244" y="82" width="24" height="363" rx="12" fill="white"/>
+
+  <!-- ── IN-FRONT segments ─────────────────────────────────────── -->
+
+  <!-- Front 1: L(201,350) → R(311,270)  [crosses rod at y≈310] -->
+  <path d="M 201 350 C 201 327 311 293 311 270"
+        stroke="#1C6888" stroke-width="26" stroke-linecap="round" fill="none"/>
+  <path d="M 201 350 C 201 327 311 293 311 270"
+        stroke="white"   stroke-width="16" stroke-linecap="round" fill="none"/>
+
+  <!-- Front 2: L(201,190) → R(311,110)  [crosses rod at y≈150] -->
+  <path d="M 201 190 C 201 167 311 133 311 110"
+        stroke="#1C6888" stroke-width="26" stroke-linecap="round" fill="none"/>
+  <path d="M 201 190 C 201 167 311 133 311 110"
+        stroke="white"   stroke-width="16" stroke-linecap="round" fill="none"/>
+
+  <!-- ── SNAKE HEAD ─────────────────────────────────────────────── -->
+  <!-- Body arrives at (311,110) moving straight up → head extends above -->
+  <ellipse cx="311" cy="91" rx="13" ry="20"
+           fill="white" stroke="#1C6888" stroke-width="4"/>
+  <!-- Eye -->
+  <circle cx="316" cy="84" r="3.5" fill="#1C6888"/>
+</svg>

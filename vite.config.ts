@@ -3,6 +3,26 @@ import vue from '@vitejs/plugin-vue'
 import vuetify from 'vite-plugin-vuetify'
 import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
+import type { Preset } from '@vite-pwa/assets-generator/config'
+
+const pwaPreset: Preset = {
+  transparent: {
+    sizes: [64, 192, 512],
+    favicons: [[48, 'favicon.ico']],
+    padding: 0,
+    resizeOptions: { background: '#5BB4E0', fit: 'contain' },
+  },
+  maskable: {
+    sizes: [512],
+    padding: 0.3,
+    resizeOptions: { background: '#5BB4E0', fit: 'contain' },
+  },
+  apple: {
+    sizes: [180],
+    padding: 0,
+    resizeOptions: { background: '#5BB4E0', fit: 'contain' },
+  },
+}
 
 export default defineConfig({
   plugins: [
@@ -10,13 +30,17 @@ export default defineConfig({
     vuetify({ autoImport: true }),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['apple-touch-icon.png'],
+      pwaAssets: {
+        preset: pwaPreset,
+        image: 'public/logo.svg',
+        overrideManifestIcons: false,
+      },
       manifest: {
         name: 'Weight Tracker',
         short_name: 'Weight',
         description: 'Track your weight over time',
-        theme_color: '#2196F3',
-        background_color: '#ffffff',
+        theme_color: '#5BB4E0',
+        background_color: '#5BB4E0',
         display: 'standalone',
         start_url: '/',
         icons: [
@@ -24,14 +48,16 @@ export default defineConfig({
             src: 'pwa-192x192.png',
             sizes: '192x192',
             type: 'image/png',
+            purpose: 'any',
           },
           {
             src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
+            purpose: 'any',
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'maskable-icon-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
