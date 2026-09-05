@@ -5,3 +5,4 @@ data/
 .vite/
 *.local
 coverage/
+__pycache__/
