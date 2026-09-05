@@ -4,7 +4,7 @@
 
 ### Frontend
 - **Framework**: Vue.js 3
-- **UI Library**: Vuetify 3
+- **UI Library**: Vuetify 4
 - **Build Tool**: Vite
 - **Language**: TypeScript
 - **Charting**: Chart.js with vue-chartjs
@@ -14,7 +14,7 @@
 ### Backend
 - **Runtime**: Node.js
 - **Language**: TypeScript
-- **Database**: SQLite (better-sqlite3 or sqlite3)
+- **Database**: SQLite (better-sqlite3)
 - **API**: REST
 
 ### Package Manager
@@ -26,7 +26,7 @@
 # Install dependencies
 yarn install
 
-# Development server
+# Start dev servers (frontend + backend together)
 yarn dev
 
 # Build for production
@@ -49,16 +49,15 @@ weight-tracker/
 ├── src/
 │   ├── frontend/     # Vue.js application
 │   │   ├── components/
-│   │   ├── views/
-│   │   ├── stores/
-│   │   └── router/
+│   │   ├── composables/
+│   │   └── types/
 │   └── backend/      # Node.js API
 │       ├── routes/
 │       ├── db/
 │       └── types/
+├── scripts/          # Data maintenance helpers (uv-run Python, PEP 723)
 ├── tests/
-├── public/
-└── dist/
+└── public/
 ```
 
 ## Code Style
