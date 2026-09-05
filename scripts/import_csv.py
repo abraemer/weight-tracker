@@ -17,6 +17,8 @@ CSV format (header required):
 Date format: YYYY-MM-DD
 Time format: HH:MM (24-hour)
 Weight: number in kg
+Timezone: date and time are interpreted as local time on the importing
+    machine and stored as UTC.
 """
 
 import argparse
@@ -48,6 +50,7 @@ CSV format (header required):
 Date format: YYYY-MM-DD
 Time format: HH:MM (24-hour)
 Weight: number in kg
+Timezone: interpreted as local time on the importing machine, stored as UTC
 
 Examples:
   uv run scripts/import_csv.py --user "Alice" --file weights.csv --dry-run
@@ -117,12 +120,11 @@ def parse_csv(filepath: str) -> list[dict]:
                 if weight <= 0:
                     raise ValueError(f"Weight must be positive: {weight}")
 
-                # Combine to local datetime, then convert to UTC
+                # Interpret date/time as local time on the importing
+                # machine, then store the instant in UTC.
                 local_dt = datetime.combine(date, time)
-                # Assume the input is in local time, convert to UTC
-                # For simplicity, we assume UTC offset is 0 (user should adjust)
-                # Or we could use: local_dt.astimezone(timezone.utc)
-                utc_timestamp = local_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+                utc_dt = local_dt.astimezone(timezone.utc)
+                utc_timestamp = utc_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
                 entries.append({
                     "date": date_str,
