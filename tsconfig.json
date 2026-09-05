@@ -23,8 +23,7 @@
     "lib": ["esnext", "dom"],
     "paths": {
       "@/*": ["./src/frontend/*"]
-    },
-    "baseUrl": "."
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.vue", "src/frontend/types/**/*.d.ts"],
   "exclude": ["node_modules", "dist"]
