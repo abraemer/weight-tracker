@@ -18,28 +18,28 @@
 - **API**: REST
 
 ### Package Manager
-- **Yarn** (not npm)
+- **pnpm** (not npm)
 
 ## Common Commands
 
 ```bash
 # Install dependencies
-yarn install
+pnpm install
 
 # Start dev servers (frontend + backend together)
-yarn dev
+pnpm dev
 
 # Build for production
-yarn build
+pnpm build
 
 # Run linter
-yarn lint
+pnpm lint
 
 # Run tests
-yarn test
+pnpm test
 
 # Type checking
-yarn typecheck
+pnpm typecheck
 ```
 
 ## Project Structure

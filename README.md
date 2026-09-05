@@ -21,17 +21,17 @@ A local web application for tracking body weight across multiple users.
 
 ### Prerequisites
 
-- Node.js 20+
-- Yarn
+- Node.js 22.13+
+- pnpm
 
 ### Setup
 
 ```bash
 # Install dependencies
-yarn install
+pnpm install
 
 # Start development servers (frontend + backend, run together)
-yarn dev
+pnpm dev
 ```
 
 The app will be available at `http://localhost:5173`.
@@ -40,19 +40,19 @@ The app will be available at `http://localhost:5173`.
 
 ```bash
 # Run tests
-yarn test
+pnpm test
 
 # Run tests once
-yarn test:run
+pnpm test:run
 
 # Lint code
-yarn lint
+pnpm lint
 
 # Type check
-yarn typecheck
+pnpm typecheck
 
 # Build for production
-yarn build
+pnpm build
 ```
 
 ## Production Deployment
