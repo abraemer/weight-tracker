@@ -1,17 +1,10 @@
-{
-	email admin@example.com
-}
+# Sample Caddyfile for weight-tracker.
+#
+# The container serves both the frontend (static files) and the API on one
+# port, so the proxy just forwards everything. Use localhost:<port> when
+# Caddy runs on the host, or the compose service name when Caddy shares a
+# Docker network with the app.
 
 weight-tracker.example.com {
-	encode gzip
-
-	root * /app/frontend
-
-	@api {
-		path /api/*
-	}
-
-	reverse_proxy @api backend:3000
-
-	file_server
+	reverse_proxy localhost:3000
 }

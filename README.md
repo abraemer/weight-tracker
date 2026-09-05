@@ -13,8 +13,8 @@ A local web application for tracking body weight across multiple users.
 
 ## Tech Stack
 
-- **Frontend**: Vue.js 3, Vuetify 3, Chart.js
-- **Backend**: Node.js, Express, SQLite
+- **Frontend**: Vue.js 3, Vuetify 4, Chart.js
+- **Backend**: Node.js, Express, SQLite (better-sqlite3)
 - **Build**: Vite, TypeScript
 
 ## Development
@@ -30,11 +30,8 @@ A local web application for tracking body weight across multiple users.
 # Install dependencies
 yarn install
 
-# Start development servers (frontend + backend)
+# Start development servers (frontend + backend, run together)
 yarn dev
-
-# In another terminal, start the backend
-yarn dev:server
 ```
 
 The app will be available at `http://localhost:5173`.
@@ -60,9 +57,13 @@ yarn build
 
 ## Production Deployment
 
+The Docker image is self-contained: a single Express process serves both the
+built frontend (static files) and the REST API on one port. No separate
+static file server is needed.
+
 ### Docker
 
-Build the Docker image:
+Build the image:
 
 ```bash
 docker build -t weight-tracker .
@@ -87,65 +88,29 @@ The app will be available at `http://localhost:3000`.
 | `PORT`          | 3000                   | Server port               |
 | `DATABASE_PATH` | data/weight-tracker.db | SQLite database file path |
 
-### With Caddy Reverse Proxy
+### Behind a Reverse Proxy (optional)
 
-For production with HTTPS and proper static file serving:
-
-1. Create a `docker-compose.yml`:
-
-```yaml
-services:
-  backend:
-    image: weight-tracker
-    restart: unless-stopped
-    volumes:
-      - weight-tracker-data:/app/data
-    environment:
-      - PORT=3000
-      - DATABASE_PATH=/app/data/weight-tracker.db
-
-  caddy:
-    image: caddy:2
-    restart: unless-stopped
-    ports:
-      - '80:80'
-      - '443:443'
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
-
-volumes:
-  weight-tracker-data:
-  caddy_data:
-  caddy_config:
-```
-
-2. Update `Caddyfile` with your domain:
+Because the container serves everything on one port, any reverse proxy just
+forwards all traffic to it. Example Caddy vhost (see [Caddyfile](Caddyfile)):
 
 ```
 your-domain.com {
-	encode gzip
-
-	root * /app/frontend
-
-	@api {
-		path /api/*
-	}
-
-	reverse_proxy @api backend:3000
-
-	file_server
+	reverse_proxy localhost:3000
 }
 ```
 
-3. Run with Docker Compose:
+Use `reverse_proxy backend:3000` instead if Caddy runs in the same Docker
+network as the app container.
 
-```bash
-docker compose up -d
-```
+> **Note:** the app has **no authentication of its own**. If you expose it
+> beyond a trusted LAN, put an auth layer in front of it (e.g. Caddy
+> `forward_auth`, a VPN, or similar).
 
 ## API Endpoints
+
+Errors are returned as JSON `{ "error": "message" }` with status `400`
+(validation), `404` (not found), or `500` (server error). Successful creates
+return `201`; deletions return `204`.
 
 ### Users
 
@@ -154,6 +119,7 @@ docker compose up -d
 | GET    | /api/users     | List all users |
 | POST   | /api/users     | Create a user  |
 | GET    | /api/users/:id | Get user by ID |
+| DELETE | /api/users/:id | Delete a user  |
 
 ### Entries
 
@@ -164,6 +130,37 @@ docker compose up -d
 | PUT    | /api/entries/:id           | Update entry         |
 | DELETE | /api/entries/:id           | Delete entry         |
 
+## Utility Scripts
+
+Two Python helper scripts for data maintenance against a running API. Both
+declare their dependencies inline (PEP 723) — run them with
+[uv](https://docs.astral.sh/uv/):
+
+```bash
+# Import weight entries from a CSV file (columns: date,time,weight; the
+# user must already exist — create it via the web UI first)
+uv run scripts/import_csv.py --user "Alice" --file weights.csv
+
+# Preview what would be imported, without inserting anything
+uv run scripts/import_csv.py --user "Alice" --file weights.csv --dry-run
+
+# Delete a user (prompts for confirmation; disambiguates duplicate names)
+uv run scripts/delete_user.py --user "Alice"
+```
+
+Both accept `--api-url` (default `http://localhost:3000/api`). CSV timestamps
+are interpreted in the importer's local timezone and stored as UTC.
+
+## Documentation
+
+| File                   | Status    | Contents |
+| ---------------------- | --------- | -------- |
+| [README.md](README.md) | current   | Usage, deployment, API — authoritative for current behavior |
+| [AGENTS.md](AGENTS.md) | current   | Tech stack and conventions for AI coding assistants |
+| [DESIGN.md](DESIGN.md) | historical | Original design document (architecture, data model, UI plan); predates later changes — superseded wherever it disagrees with this README |
+| [PLAN.md](PLAN.md)     | historical | Implementation plan from initial development; fully completed |
+| [REPORT.md](REPORT.md) | historical | Implementation retrospective from initial development |
+
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
