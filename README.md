@@ -21,7 +21,7 @@ A local web application for tracking body weight across multiple users.
 
 ### Prerequisites
 
-- Node.js 22.13+
+- Node.js 24.15+
 - pnpm
 
 ### Setup
