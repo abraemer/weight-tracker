@@ -1,5 +1,13 @@
 # Weight Tracker - Design Document
 
+> **Status: historical.** This is the original design document from initial
+> planning (March 2026), preserved as reference. It is not maintained:
+> wherever it disagrees with the README, the README wins. In particular, the
+> "Production Deployment" architecture below (Caddy serving static files in
+> front of a backend-only container) was superseded — the shipped image is a
+> single multi-stage-build container whose Express process serves both the
+> frontend and the API. See README.md.
+
 ## Overview
 
 A local web application for tracking body weight across multiple users. No authentication required since it's hosted locally.

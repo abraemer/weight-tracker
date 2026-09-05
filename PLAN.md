@@ -1,5 +1,9 @@
 # Implementation Plan
 
+> **Status: historical.** Implementation plan from initial development
+> (March 2026); all phases completed (see REPORT.md). Preserved as
+> reference only.
+
 ## Phase 1: Project Setup
 
 ### 1.1 Initialize Node.js project

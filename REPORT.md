@@ -1,5 +1,8 @@
 # Weight Tracker Implementation Report
 
+> **Status: historical.** One-time retrospective of the initial
+> implementation (March 2026). Preserved as reference only; not maintained.
+
 ## Overview
 
 This report documents the implementation journey of a weight tracking web application, from initial concept to completion.
