@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { fetchUsers, fetchUser, createUser } from '../api.js'
+import { fetchUsers, createUser } from '../api.js'
 import type { User, NewUser } from '../types/index.js'
 
 const users = ref<User[]>([])
@@ -35,26 +35,6 @@ export function useUsers() {
     }
   }
 
-  async function loadUser(id: number): Promise<User | null> {
-    loading.value = true
-    error.value = null
-    try {
-      const user = await fetchUser(id)
-      const index = users.value.findIndex((u) => u.id === id)
-      if (index >= 0) {
-        users.value[index] = user
-      } else {
-        users.value.push(user)
-      }
-      return user
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to load user'
-      return null
-    } finally {
-      loading.value = false
-    }
-  }
-
   async function addUser(data: NewUser): Promise<User | null> {
     loading.value = true
     error.value = null
@@ -81,7 +61,6 @@ export function useUsers() {
     loading,
     error,
     loadUsers,
-    loadUser,
     addUser,
     setActiveUser,
   }

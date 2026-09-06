@@ -111,11 +111,6 @@ export async function fetchUsers(): Promise<User[]> {
   return handleResponse<User[]>(response)
 }
 
-export async function fetchUser(id: number): Promise<User> {
-  const response = await apiFetch(`/api/users/${id}`)
-  return handleResponse<User>(response)
-}
-
 export async function createUser(data: NewUser): Promise<User> {
   const response = await apiFetch('/api/users', {
     method: 'POST',

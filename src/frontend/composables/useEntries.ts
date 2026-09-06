@@ -155,14 +155,6 @@ export function useEntries(userId: number | null) {
     }
   }
 
-  function refreshFromCache(): void {
-    if (userId === null) {
-      entries.value = []
-    } else {
-      entries.value = entriesByUser.value.get(userId) ?? []
-    }
-  }
-
   function isOperationLoading(key: string): boolean {
     return operationLoading.value.get(key) ?? false
   }
@@ -175,7 +167,6 @@ export function useEntries(userId: number | null) {
     addEntry,
     editEntry,
     removeEntry,
-    refreshFromCache,
     isOperationLoading,
   }
 }

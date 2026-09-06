@@ -96,7 +96,6 @@ const emit = defineEmits<{
 const newDate = ref('')
 const newTime = ref('')
 const newWeight = ref<number | null>(null)
-const savingInternal = ref(false)
 const savingEntries = ref(new Set<number>())
 
 const sortedEntries = computed(() => {
@@ -139,12 +138,10 @@ async function saveNewEntry(): Promise<void> {
   const localDateTime = `${newDate.value}T${newTime.value}`
   const utcTimestamp = localToUtc(localDateTime)
 
-  savingInternal.value = true
   emit('create', {
     timestamp: utcTimestamp,
     weight_kg: newWeight.value,
   })
-  savingInternal.value = false
   initNewEntry()
 }
 

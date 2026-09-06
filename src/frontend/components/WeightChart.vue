@@ -28,7 +28,6 @@ import { computed, ref } from 'vue'
 import { Line } from 'vue-chartjs'
 import {
   Chart as ChartJS,
-  CategoryScale,
   LinearScale,
   PointElement,
   LineElement,
@@ -43,7 +42,6 @@ import zoomPlugin from 'chartjs-plugin-zoom'
 import type { Entry } from '../types/index.js'
 
 ChartJS.register(
-  CategoryScale,
   LinearScale,
   PointElement,
   LineElement,
@@ -62,8 +60,6 @@ const props = defineProps<{
 interface TrendlineData {
   slope: number
   intercept: number
-  startDate: Date
-  endDate: Date
 }
 
 function calculateTrendline(entries: Entry[]): TrendlineData | null {
@@ -75,10 +71,6 @@ function calculateTrendline(entries: Entry[]): TrendlineData | null {
   const recentEntries = entries.filter((e) => new Date(e.timestamp) >= thirtyDaysAgo)
 
   if (recentEntries.length < 2) return null
-
-  const timestamps = recentEntries.map((e) => new Date(e.timestamp).getTime())
-  const minTime = Math.min(...timestamps)
-  const maxTime = Math.max(...timestamps)
 
   const points = recentEntries.map((e) => ({
     x: new Date(e.timestamp).getTime(),
@@ -101,14 +93,9 @@ function calculateTrendline(entries: Entry[]): TrendlineData | null {
   const slopeKgPerMs = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX)
   const intercept = (sumY - slopeKgPerMs * sumX) / n
 
-  const startDate = new Date(minTime)
-  const endDate = new Date(maxTime + 30 * 24 * 60 * 60 * 1000)
-
   return {
     slope: slopeKgPerMs,
     intercept,
-    startDate,
-    endDate,
   }
 }
 
