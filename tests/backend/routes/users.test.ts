@@ -97,4 +97,43 @@ describe('User Routes', () => {
       expect(res.body.error).toBe('Name is required and must be non-empty')
     })
   })
+
+  describe('DELETE /api/users/:id', () => {
+    it('deletes user and cascades to their entries', async () => {
+      const result = db.prepare('INSERT INTO users (name) VALUES (?)').run('Alice')
+      const userId = result.lastInsertRowid
+      db.prepare('INSERT INTO entries (user_id, timestamp, weight_kg) VALUES (?, ?, ?)').run(
+        userId,
+        '2026-01-01 08:00:00',
+        80.5
+      )
+
+      const res = await request(app).delete(`/api/users/${userId}`)
+      expect(res.status).toBe(204)
+
+      const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId)
+      expect(user).toBeUndefined()
+
+      const entries = db.prepare('SELECT * FROM entries WHERE user_id = ?').all(userId)
+      expect(entries).toEqual([])
+    })
+
+    it('returns 404 when user not found', async () => {
+      const res = await request(app).delete('/api/users/999')
+      expect(res.status).toBe(404)
+      expect(res.body.error).toBe('User not found')
+    })
+
+    it('returns 404 when id is not a number', async () => {
+      const res = await request(app).delete('/api/users/abc')
+      expect(res.status).toBe(404)
+      expect(res.body.error).toBe('User not found')
+    })
+
+    it('GET with non-numeric id returns 404', async () => {
+      const res = await request(app).get('/api/users/abc')
+      expect(res.status).toBe(404)
+      expect(res.body.error).toBe('User not found')
+    })
+  })
 })

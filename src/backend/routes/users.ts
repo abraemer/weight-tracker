@@ -1,5 +1,6 @@
 import express from 'express'
 import { getDb } from '../db/database.js'
+import { parseId } from '../utils/parse-id.js'
 import type { User, NewUser } from '../types/index.js'
 
 const router = express.Router()
@@ -11,8 +12,13 @@ router.get('/', (_req, res) => {
 })
 
 router.get('/:id', (req, res) => {
+  const id = parseId(req.params.id)
+  if (id === null) {
+    res.status(404).json({ error: 'User not found' })
+    return
+  }
   const db = getDb()
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id) as User | undefined
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined
   if (!user) {
     res.status(404).json({ error: 'User not found' })
     return
@@ -34,8 +40,12 @@ router.post('/', (req, res) => {
 })
 
 router.delete('/:id', (req, res) => {
+  const id = parseId(req.params.id)
+  if (id === null) {
+    res.status(404).json({ error: 'User not found' })
+    return
+  }
   const db = getDb()
-  const id = parseInt(req.params.id, 10)
 
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined
   if (!user) {
@@ -43,7 +53,6 @@ router.delete('/:id', (req, res) => {
     return
   }
 
-  db.prepare('DELETE FROM entries WHERE user_id = ?').run(id)
   db.prepare('DELETE FROM users WHERE id = ?').run(id)
   res.status(204).send()
 })
