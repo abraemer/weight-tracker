@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3'
-import { readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import type { Database as DatabaseType } from 'better-sqlite3'
@@ -14,7 +14,12 @@ let _db: DatabaseType | null = null
 export function getDb(): DatabaseType {
   if (!_db) {
     const dbPath = process.env.DATABASE_PATH || 'data/weight-tracker.db'
+    if (dbPath !== ':memory:') {
+      mkdirSync(dirname(dbPath), { recursive: true })
+    }
     _db = new Database(dbPath)
+    _db.pragma('foreign_keys = ON')
+    _db.pragma('journal_mode = WAL')
     _db.exec(schemaSql)
   }
   return _db
@@ -23,6 +28,7 @@ export function getDb(): DatabaseType {
 export function setTestDb(db: DatabaseType): void {
   _db = db
   db.exec(schemaSql)
+  db.pragma('foreign_keys = ON')
 }
 
 export function closeDb(): void {
@@ -31,6 +37,3 @@ export function closeDb(): void {
     _db = null
   }
 }
-
-const _defaultExport: DatabaseType = getDb()
-export default _defaultExport
