@@ -157,9 +157,9 @@ are interpreted in the importer's local timezone and stored as UTC.
 | ---------------------- | --------- | -------- |
 | [README.md](README.md) | current   | Usage, deployment, API — authoritative for current behavior |
 | [AGENTS.md](AGENTS.md) | current   | Tech stack and conventions for AI coding assistants |
-| [DESIGN.md](DESIGN.md) | historical | Original design document (architecture, data model, UI plan); predates later changes — superseded wherever it disagrees with this README |
-| [PLAN.md](PLAN.md)     | historical | Implementation plan from initial development; fully completed |
-| [REPORT.md](REPORT.md) | historical | Implementation retrospective from initial development |
+| [DESIGN.md](docs/history/DESIGN.md) | historical | Original design document (architecture, data model, UI plan); predates later changes — superseded wherever it disagrees with this README |
+| [PLAN.md](docs/history/PLAN.md)     | historical | Implementation plan from initial development; fully completed |
+| [REPORT.md](docs/history/REPORT.md) | historical | Implementation retrospective from initial development |
 
 ## License
 
