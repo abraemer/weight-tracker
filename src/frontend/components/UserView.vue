@@ -8,6 +8,8 @@
         <WeightTable
           :entries="entries"
           :saving="isSaving"
+          :edit-loading="editLoading"
+          :delete-loading="deleteLoading"
           @create="handleCreate"
           @update="handleUpdate"
           @delete="handleDelete"
@@ -37,6 +39,14 @@ const { entries, loading, loadEntries, addEntry, editEntry, removeEntry, isOpera
 const isSaving = computed(() => {
   return isOperationLoading(`add-${props.userId}`)
 })
+
+function editLoading(id: number): boolean {
+  return isOperationLoading(`edit-${id}`)
+}
+
+function deleteLoading(id: number): boolean {
+  return isOperationLoading(`delete-${id}`)
+}
 
 watch(
   () => props.userId,

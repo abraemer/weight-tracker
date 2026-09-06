@@ -41,6 +41,7 @@ import { ref } from 'vue'
 
 defineProps<{
   modelValue: boolean
+  saving?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -50,7 +51,6 @@ const emit = defineEmits<{
 
 const name = ref('')
 const error = ref('')
-const saving = ref(false)
 
 function handleSubmit(): void {
   const trimmedName = name.value.trim()
@@ -58,9 +58,7 @@ function handleSubmit(): void {
     error.value = 'Name is required'
     return
   }
-  saving.value = true
   emit('create', trimmedName)
-  saving.value = false
   name.value = ''
   error.value = ''
 }

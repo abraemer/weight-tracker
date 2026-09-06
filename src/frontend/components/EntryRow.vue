@@ -40,8 +40,8 @@
           icon
           size="small"
           variant="text"
-          :disabled="saving"
-          :loading="saving && isSavingEdit"
+          :disabled="savingEdit || savingDelete"
+          :loading="savingEdit"
           @click="startEdit"
         >
           <v-icon>mdi-pencil</v-icon>
@@ -51,8 +51,8 @@
           size="small"
           variant="text"
           color="error"
-          :disabled="saving"
-          :loading="saving && !isSavingEdit"
+          :disabled="savingEdit || savingDelete"
+          :loading="savingDelete"
           @click="showDeleteDialog = true"
         >
           <v-icon>mdi-delete</v-icon>
@@ -89,12 +89,14 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn variant="text" :disabled="saving" @click="showDeleteDialog = false">Cancel</v-btn>
+        <v-btn variant="text" :disabled="savingEdit || savingDelete" @click="showDeleteDialog = false">
+          Cancel
+        </v-btn>
         <v-btn
           color="error"
           variant="flat"
-          :loading="saving"
-          :disabled="saving"
+          :loading="savingDelete"
+          :disabled="savingEdit"
           @click="confirmDelete"
         >
           Delete
@@ -111,7 +113,8 @@ import type { Entry, UpdateEntry } from '../types/index.js'
 
 const props = defineProps<{
   entry: Entry
-  saving?: boolean
+  savingEdit?: boolean
+  savingDelete?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -120,7 +123,6 @@ const emit = defineEmits<{
 }>()
 
 const isEditing = ref(false)
-const isSavingEdit = ref(false)
 const editDate = ref('')
 const editTime = ref('')
 const editWeight = ref(0)
@@ -146,17 +148,14 @@ function startEdit(): void {
   editTime.value = parts[1] ?? ''
   editWeight.value = props.entry.weight_kg
   isEditing.value = true
-  isSavingEdit.value = false
 }
 
 function cancelEdit(): void {
   isEditing.value = false
-  isSavingEdit.value = false
 }
 
 function saveEdit(): void {
   if (!isValid.value) return
-  isSavingEdit.value = true
   const localDateTime = `${editDate.value}T${editTime.value}`
   const utcTimestamp = localToUtc(localDateTime)
   emit('update', props.entry.id, {
@@ -167,7 +166,6 @@ function saveEdit(): void {
 }
 
 function confirmDelete(): void {
-  isSavingEdit.value = false
   showDeleteDialog.value = false
   emit('delete', props.entry.id)
 }

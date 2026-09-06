@@ -67,7 +67,8 @@
           v-for="entry in sortedEntries"
           :key="entry.id"
           :entry="entry"
-          :saving="isEntrySaving(entry.id)"
+          :saving-edit="editLoading(entry.id)"
+          :saving-delete="deleteLoading(entry.id)"
           @update="handleUpdate"
           @delete="handleDelete"
         />
@@ -85,6 +86,8 @@ import EntryRow from './EntryRow.vue'
 const props = defineProps<{
   entries: Entry[]
   saving?: boolean
+  editLoading: (id: number) => boolean
+  deleteLoading: (id: number) => boolean
 }>()
 
 const emit = defineEmits<{
@@ -96,7 +99,6 @@ const emit = defineEmits<{
 const newDate = ref('')
 const newTime = ref('')
 const newWeight = ref<number | null>(null)
-const savingEntries = ref(new Set<number>())
 
 const sortedEntries = computed(() => {
   return [...props.entries].sort(
@@ -113,10 +115,6 @@ const validationErrors = computed(() => ({
 const isNewValid = computed(() => {
   return newDate.value && newTime.value && newWeight.value !== null && newWeight.value > 0
 })
-
-function isEntrySaving(id: number): boolean {
-  return savingEntries.value.has(id)
-}
 
 function initNewEntry(): void {
   const now = getCurrentLocalDateTime()
@@ -146,15 +144,11 @@ async function saveNewEntry(): Promise<void> {
 }
 
 function handleUpdate(id: number, data: UpdateEntry): void {
-  savingEntries.value.add(id)
   emit('update', id, data)
-  window.setTimeout(() => savingEntries.value.delete(id), 1000)
 }
 
 function handleDelete(id: number): void {
-  savingEntries.value.add(id)
   emit('delete', id)
-  window.setTimeout(() => savingEntries.value.delete(id), 1000)
 }
 
 onMounted(() => {

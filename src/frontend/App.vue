@@ -20,7 +20,12 @@
       </v-container>
     </v-main>
 
-    <AddUserDialog v-if="!sessionExpired" v-model="showAddDialog" @create="handleCreateUser" />
+    <AddUserDialog
+      v-if="!sessionExpired"
+      v-model="showAddDialog"
+      :saving="creatingUser"
+      @create="handleCreateUser"
+    />
 
     <v-snackbar v-model="snackbar.show" :color="snackbar.color">
       {{ snackbar.message }}
@@ -65,6 +70,7 @@ const { users, activeUserId, activeUser, loading, loadUsers, addUser, setActiveU
 
 const showAddDialog = ref(false)
 const hasLoadedOnce = ref(false)
+const creatingUser = ref(false)
 
 const buildTime = (window as unknown as Record<string, string>).__BUILD_TIME__ || ''
 
@@ -144,15 +150,20 @@ onUnmounted(() => {
 })
 
 async function handleCreateUser(name: string): Promise<void> {
-  const user = await addUser({ name })
-  if (user) {
-    showAddDialog.value = false
-    setActiveUser(user.id)
-    snackbar.value = {
-      show: true,
-      message: `User "${user.name}" created`,
-      color: 'success',
+  creatingUser.value = true
+  try {
+    const user = await addUser({ name })
+    if (user) {
+      showAddDialog.value = false
+      setActiveUser(user.id)
+      snackbar.value = {
+        show: true,
+        message: `User "${user.name}" created`,
+        color: 'success',
+      }
     }
+  } finally {
+    creatingUser.value = false
   }
 }
 
