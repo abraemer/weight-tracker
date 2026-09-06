@@ -67,6 +67,20 @@ describe('Entry Routes', () => {
       expect(res.body).toHaveLength(1)
       expect(res.body[0].weight_kg).toBe(70.5)
     })
+
+    it('returns 404 when user does not exist', async () => {
+      const res = await request(app).get('/api/users/999/entries')
+
+      expect(res.status).toBe(404)
+      expect(res.body.error).toBe('User not found')
+    })
+
+    it('returns 404 when userId is not a valid id', async () => {
+      const res = await request(app).get('/api/users/abc/entries')
+
+      expect(res.status).toBe(404)
+      expect(res.body.error).toBe('User not found')
+    })
   })
 
   describe('POST /api/users/:userId/entries', () => {
@@ -107,6 +121,15 @@ describe('Entry Routes', () => {
       expect(res.body.error).toBe('User not found')
     })
 
+    it('returns 404 when userId is not a valid id', async () => {
+      const res = await request(app)
+        .post('/api/users/abc/entries')
+        .send({ timestamp: '2026-01-01T08:00:00Z', weight_kg: 70 })
+
+      expect(res.status).toBe(404)
+      expect(res.body.error).toBe('User not found')
+    })
+
     it('returns 400 when timestamp is missing', async () => {
       const res = await request(app).post(`/api/users/${userId}/entries`).send({ weight_kg: 70.5 })
 
@@ -121,6 +144,15 @@ describe('Entry Routes', () => {
 
       expect(res.status).toBe(400)
       expect(res.body.error).toBe('Timestamp is required')
+    })
+
+    it('returns 400 when timestamp is not a valid date', async () => {
+      const res = await request(app)
+        .post(`/api/users/${userId}/entries`)
+        .send({ timestamp: 'banana', weight_kg: 70 })
+
+      expect(res.status).toBe(400)
+      expect(res.body.error).toBe('Timestamp must be a valid date')
     })
 
     it('returns 400 when weight_kg is missing', async () => {
@@ -212,6 +244,27 @@ describe('Entry Routes', () => {
       expect(res.body.error).toBe('Entry not found')
     })
 
+    it('returns 404 when id is not a valid id', async () => {
+      const res = await request(app).put('/api/entries/abc').send({ weight_kg: 72.0 })
+
+      expect(res.status).toBe(404)
+      expect(res.body.error).toBe('Entry not found')
+    })
+
+    it('returns 400 when timestamp is not a string', async () => {
+      const res = await request(app).put(`/api/entries/${entryId}`).send({ timestamp: 123 })
+
+      expect(res.status).toBe(400)
+      expect(res.body.error).toBe('Timestamp must be a valid date')
+    })
+
+    it('returns 400 when timestamp is not a valid date', async () => {
+      const res = await request(app).put(`/api/entries/${entryId}`).send({ timestamp: 'banana' })
+
+      expect(res.status).toBe(400)
+      expect(res.body.error).toBe('Timestamp must be a valid date')
+    })
+
     it('returns 400 when weight_kg is zero', async () => {
       const res = await request(app).put(`/api/entries/${entryId}`).send({ weight_kg: 0 })
 
@@ -254,6 +307,12 @@ describe('Entry Routes', () => {
 
     it('returns 404 when entry does not exist', async () => {
       const res = await request(app).delete('/api/entries/999')
+      expect(res.status).toBe(404)
+      expect(res.body.error).toBe('Entry not found')
+    })
+
+    it('returns 404 when id is not a valid id', async () => {
+      const res = await request(app).delete('/api/entries/abc')
       expect(res.status).toBe(404)
       expect(res.body.error).toBe('Entry not found')
     })

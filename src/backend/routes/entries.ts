@@ -1,24 +1,47 @@
 import express from 'express'
 import { getDb } from '../db/database.js'
+import { parseId } from '../utils/parse-id.js'
 import type { Entry, NewEntry, UpdateEntry } from '../types/index.js'
 
 const router = express.Router()
 
 router.get('/users/:userId/entries', (req, res) => {
+  const userId = parseId(req.params.userId)
+  if (userId === null) {
+    res.status(404).json({ error: 'User not found' })
+    return
+  }
+
   const db = getDb()
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId)
+  if (!user) {
+    res.status(404).json({ error: 'User not found' })
+    return
+  }
+
   const entries = db
     .prepare('SELECT * FROM entries WHERE user_id = ? ORDER BY timestamp DESC')
-    .all(req.params.userId) as Entry[]
+    .all(userId) as Entry[]
   res.json(entries)
 })
 
 router.post('/users/:userId/entries', (req, res) => {
+  const userId = parseId(req.params.userId)
+  if (userId === null) {
+    res.status(404).json({ error: 'User not found' })
+    return
+  }
+
   const db = getDb()
   const { timestamp, weight_kg } = req.body as NewEntry
-  const userId = parseInt(req.params.userId, 10)
 
   if (!timestamp || typeof timestamp !== 'string') {
     res.status(400).json({ error: 'Timestamp is required' })
+    return
+  }
+
+  if (Number.isNaN(Date.parse(timestamp))) {
+    res.status(400).json({ error: 'Timestamp must be a valid date' })
     return
   }
 
@@ -40,9 +63,14 @@ router.post('/users/:userId/entries', (req, res) => {
 })
 
 router.put('/entries/:id', (req, res) => {
+  const id = parseId(req.params.id)
+  if (id === null) {
+    res.status(404).json({ error: 'Entry not found' })
+    return
+  }
+
   const db = getDb()
   const { timestamp, weight_kg } = req.body as UpdateEntry
-  const id = parseInt(req.params.id, 10)
 
   const existing = db.prepare('SELECT * FROM entries WHERE id = ?').get(id) as Entry | undefined
   if (!existing) {
@@ -54,6 +82,10 @@ router.put('/entries/:id', (req, res) => {
   const values: (string | number)[] = []
 
   if (timestamp !== undefined) {
+    if (typeof timestamp !== 'string' || Number.isNaN(Date.parse(timestamp))) {
+      res.status(400).json({ error: 'Timestamp must be a valid date' })
+      return
+    }
     updates.push('timestamp = ?')
     values.push(timestamp)
   }
@@ -78,8 +110,13 @@ router.put('/entries/:id', (req, res) => {
 })
 
 router.delete('/entries/:id', (req, res) => {
+  const id = parseId(req.params.id)
+  if (id === null) {
+    res.status(404).json({ error: 'Entry not found' })
+    return
+  }
+
   const db = getDb()
-  const id = parseInt(req.params.id, 10)
   const existing = db.prepare('SELECT * FROM entries WHERE id = ?').get(id)
   if (!existing) {
     res.status(404).json({ error: 'Entry not found' })
