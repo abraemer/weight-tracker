@@ -8,7 +8,7 @@
       </div>
       <template v-else>
         <v-checkbox
-          v-if="hasSufficientDataForTrendline"
+          v-if="hasTrend"
           v-model="showTrendline"
           label="Show trendline"
           density="compact"
@@ -41,11 +41,10 @@ import 'chartjs-adapter-date-fns'
 import zoomPlugin from 'chartjs-plugin-zoom'
 import type { Entry } from '../types/index.js'
 import {
-  calculateTrendline,
-  getTrendlinePoints,
+  calculateTrend,
   DAY_MS,
   THIRTY_DAYS_MS,
-} from '../utils/trendline.js'
+} from '../utils/trend.js'
 
 ChartJS.register(
   LinearScale,
@@ -69,9 +68,9 @@ const sortedEntries = computed(() => {
   )
 })
 
-const trendline = computed(() => calculateTrendline(props.entries))
+const trend = computed(() => calculateTrend(props.entries))
 
-const hasSufficientDataForTrendline = computed(() => trendline.value !== null)
+const hasTrend = computed(() => trend.value !== null)
 
 const showTrendline = ref(true)
 
@@ -102,18 +101,25 @@ const chartData = computed(() => {
     },
   ]
 
-  if (trendline.value && showTrendline.value) {
-    const trendPoints = getTrendlinePoints(trendline.value)
-    const slopeGPer30Days = Math.round(trendline.value.slope * 1000 * THIRTY_DAYS_MS)
+  if (trend.value && showTrendline.value) {
     datasets.push({
-      label: `Trend (${slopeGPer30Days} g/30d)`,
-      data: trendPoints,
+      label: `Trend (${Math.round(trend.value.slopeKgPerDay * 1000 * 30)} g/30d)`,
+      data: trend.value.points,
       borderColor: 'rgb(211, 47, 47)',
       backgroundColor: 'transparent',
       tension: 0,
       fill: false,
       pointRadius: 0,
+    })
+    datasets.push({
+      label: 'Forecast (30d)',
+      data: trend.value.forecast,
+      borderColor: 'rgb(211, 47, 47)',
+      backgroundColor: 'transparent',
       borderDash: [5, 5],
+      tension: 0,
+      fill: false,
+      pointRadius: 0,
     })
   }
 
@@ -138,7 +144,7 @@ const xAxisRange = computed(() => {
   const minWithPadding = minTime - padding
   const min = Math.max(oneYearAgo.getTime(), minWithPadding)
 
-  return { min, max: maxTime + padding }
+  return { min, max: maxTime + Math.max(padding, 35 * DAY_MS) }
 })
 
 const chartOptions = computed(() => ({
