@@ -17,7 +17,7 @@ router.get('/users/:userId/entries', (req, res) => {
   }
 
   const db = getDb()
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId)
+  const user = db.prepare('SELECT * FROM users WHERE id = ? AND deleted = 0').get(userId)
   if (!user) {
     res.status(404).json({ error: 'User not found' })
     return
@@ -54,7 +54,7 @@ router.post('/users/:userId/entries', (req, res) => {
     return
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId)
+  const user = db.prepare('SELECT * FROM users WHERE id = ? AND deleted = 0').get(userId)
   if (!user) {
     res.status(404).json({ error: 'User not found' })
     return

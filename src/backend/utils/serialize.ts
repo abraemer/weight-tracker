@@ -16,6 +16,6 @@ export function serializeEntry(row: RawEntry): Entry {
   return { ...row, updated_at: row.updated_at ?? EPOCH, deleted: row.deleted === 1 }
 }
 
-export function serializeUser(row: RawUser): User & { updated_at: string; deleted: boolean } {
+export function serializeUser(row: RawUser): User {
   return { ...row, updated_at: row.updated_at ?? EPOCH, deleted: row.deleted === 1 }
 }

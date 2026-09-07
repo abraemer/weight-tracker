@@ -78,6 +78,18 @@ describe('Entry Routes', () => {
       expect(res.body.error).toBe('User not found')
     })
 
+    it('returns 404 when the user is tombstoned', async () => {
+      db.prepare('UPDATE users SET deleted = 1, updated_at = ? WHERE id = ?').run(
+        '2026-01-01T00:00:00.000Z',
+        userId
+      )
+
+      const res = await request(app).get(`/api/users/${userId}/entries`)
+
+      expect(res.status).toBe(404)
+      expect(res.body.error).toBe('User not found')
+    })
+
     it('returns 404 when userId is not a valid id', async () => {
       const res = await request(app).get('/api/users/abc/entries')
 
@@ -176,6 +188,20 @@ describe('Entry Routes', () => {
     it('returns 404 when user does not exist', async () => {
       const res = await request(app)
         .post('/api/users/999/entries')
+        .send({ timestamp: '2024-01-01T10:00:00Z', weight_kg: 70.5 })
+
+      expect(res.status).toBe(404)
+      expect(res.body.error).toBe('User not found')
+    })
+
+    it('returns 404 when the user is tombstoned', async () => {
+      db.prepare('UPDATE users SET deleted = 1, updated_at = ? WHERE id = ?').run(
+        '2026-01-01T00:00:00.000Z',
+        userId
+      )
+
+      const res = await request(app)
+        .post(`/api/users/${userId}/entries`)
         .send({ timestamp: '2024-01-01T10:00:00Z', weight_kg: 70.5 })
 
       expect(res.status).toBe(404)
