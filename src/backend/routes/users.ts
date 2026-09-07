@@ -1,14 +1,15 @@
 import express from 'express'
 import { getDb } from '../db/database.js'
 import { parseId } from '../utils/parse-id.js'
+import { serializeUser, type RawUser } from '../utils/serialize.js'
 import type { User, NewUser } from '../types/index.js'
 
 const router = express.Router()
 
 router.get('/', (_req, res) => {
   const db = getDb()
-  const users = db.prepare('SELECT * FROM users ORDER BY created_at ASC').all() as User[]
-  res.json(users)
+  const users = db.prepare('SELECT * FROM users ORDER BY created_at ASC').all() as RawUser[]
+  res.json(users.map(serializeUser))
 })
 
 router.get('/:id', (req, res) => {
@@ -18,12 +19,12 @@ router.get('/:id', (req, res) => {
     return
   }
   const db = getDb()
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as RawUser | undefined
   if (!user) {
     res.status(404).json({ error: 'User not found' })
     return
   }
-  res.json(user)
+  res.json(serializeUser(user))
 })
 
 router.post('/', (req, res) => {
@@ -35,8 +36,8 @@ router.post('/', (req, res) => {
   }
   const stmt = db.prepare('INSERT INTO users (name) VALUES (?)')
   const result = stmt.run(name.trim())
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid) as User
-  res.status(201).json(user)
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid) as RawUser
+  res.status(201).json(serializeUser(user))
 })
 
 router.delete('/:id', (req, res) => {

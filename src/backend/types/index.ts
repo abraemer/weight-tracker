@@ -10,6 +10,8 @@ export interface Entry {
   timestamp: string
   weight_kg: number
   created_at: string
+  updated_at: string
+  deleted: boolean
 }
 
 export interface NewUser {
@@ -24,4 +26,5 @@ export interface NewEntry {
 export interface UpdateEntry {
   timestamp?: string
   weight_kg?: number
+  updated_at: string
 }

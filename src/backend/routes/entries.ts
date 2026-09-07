@@ -1,9 +1,13 @@
 import express from 'express'
 import { getDb } from '../db/database.js'
 import { parseId } from '../utils/parse-id.js'
-import type { Entry, NewEntry, UpdateEntry } from '../types/index.js'
+import { nowIso } from '../utils/now.js'
+import { serializeEntry, EPOCH, type RawEntry } from '../utils/serialize.js'
+import type { NewEntry, UpdateEntry } from '../types/index.js'
 
 const router = express.Router()
+
+const UPDATED_AT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
 
 router.get('/users/:userId/entries', (req, res) => {
   const userId = parseId(req.params.userId)
@@ -20,9 +24,9 @@ router.get('/users/:userId/entries', (req, res) => {
   }
 
   const entries = db
-    .prepare('SELECT * FROM entries WHERE user_id = ? ORDER BY timestamp DESC')
-    .all(userId) as Entry[]
-  res.json(entries)
+    .prepare('SELECT * FROM entries WHERE user_id = ? AND deleted = 0 ORDER BY timestamp DESC')
+    .all(userId) as RawEntry[]
+  res.json(entries.map(serializeEntry))
 })
 
 router.post('/users/:userId/entries', (req, res) => {
@@ -56,10 +60,12 @@ router.post('/users/:userId/entries', (req, res) => {
     return
   }
 
-  const stmt = db.prepare('INSERT INTO entries (user_id, timestamp, weight_kg) VALUES (?, ?, ?)')
-  const result = stmt.run(userId, timestamp, weight_kg)
-  const entry = db.prepare('SELECT * FROM entries WHERE id = ?').get(result.lastInsertRowid) as Entry
-  res.status(201).json(entry)
+  const stmt = db.prepare(
+    'INSERT INTO entries (user_id, timestamp, weight_kg, updated_at) VALUES (?, ?, ?, ?)'
+  )
+  const result = stmt.run(userId, timestamp, weight_kg, nowIso())
+  const entry = db.prepare('SELECT * FROM entries WHERE id = ?').get(result.lastInsertRowid) as RawEntry
+  res.status(201).json(serializeEntry(entry))
 })
 
 router.put('/entries/:id', (req, res) => {
@@ -70,9 +76,9 @@ router.put('/entries/:id', (req, res) => {
   }
 
   const db = getDb()
-  const { timestamp, weight_kg } = req.body as UpdateEntry
+  const { timestamp, weight_kg, updated_at } = req.body as UpdateEntry
 
-  const existing = db.prepare('SELECT * FROM entries WHERE id = ?').get(id) as Entry | undefined
+  const existing = db.prepare('SELECT * FROM entries WHERE id = ?').get(id) as RawEntry | undefined
   if (!existing) {
     res.status(404).json({ error: 'Entry not found' })
     return
@@ -99,14 +105,28 @@ router.put('/entries/:id', (req, res) => {
   }
 
   if (updates.length === 0) {
-    res.json(existing)
+    res.json(serializeEntry(existing))
     return
   }
 
+  if (typeof updated_at !== 'string' || !UPDATED_AT_PATTERN.test(updated_at)) {
+    res.status(400).json({ error: 'updated_at is required and must be an ISO-8601 UTC timestamp with millisecond precision' })
+    return
+  }
+
+  const serverUpdatedAt = existing.updated_at ?? EPOCH
+  if (serverUpdatedAt > updated_at) {
+    res.status(409).json({ error: 'conflict', row: serializeEntry(existing) })
+    return
+  }
+
+  updates.push('updated_at = ?')
+  values.push(nowIso())
+
   values.push(id)
   db.prepare(`UPDATE entries SET ${updates.join(', ')} WHERE id = ?`).run(...values)
-  const entry = db.prepare('SELECT * FROM entries WHERE id = ?').get(id) as Entry
-  res.json(entry)
+  const entry = db.prepare('SELECT * FROM entries WHERE id = ?').get(id) as RawEntry
+  res.json(serializeEntry(entry))
 })
 
 router.delete('/entries/:id', (req, res) => {
@@ -117,12 +137,30 @@ router.delete('/entries/:id', (req, res) => {
   }
 
   const db = getDb()
-  const existing = db.prepare('SELECT * FROM entries WHERE id = ?').get(id)
+  const existing = db.prepare('SELECT * FROM entries WHERE id = ?').get(id) as RawEntry | undefined
   if (!existing) {
     res.status(404).json({ error: 'Entry not found' })
     return
   }
-  db.prepare('DELETE FROM entries WHERE id = ?').run(id)
+
+  const observed = req.query.updated_at
+  if (observed !== undefined) {
+    if (typeof observed !== 'string' || !UPDATED_AT_PATTERN.test(observed)) {
+      res.status(400).json({ error: 'updated_at must be an ISO-8601 UTC timestamp with millisecond precision' })
+      return
+    }
+    const serverUpdatedAt = existing.updated_at ?? EPOCH
+    if (existing.deleted === 1 && observed >= serverUpdatedAt) {
+      res.status(204).send()
+      return
+    }
+    if (serverUpdatedAt > observed) {
+      res.status(409).json({ error: 'conflict', row: serializeEntry(existing) })
+      return
+    }
+  }
+
+  db.prepare('UPDATE entries SET deleted = 1, updated_at = ? WHERE id = ?').run(nowIso(), id)
   res.status(204).send()
 })
 
