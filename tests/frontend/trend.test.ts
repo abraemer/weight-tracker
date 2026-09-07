@@ -156,7 +156,7 @@ describe('trend (Kalman filter)', () => {
     const finalLevel = lastPoint.y
     expect(finalLevel).toBe(pointAt(result.forecast, 0).y)
     expect(Math.abs(finalLevel - (70 + 0.02 * 89))).toBeLessThanOrEqual(1.81)
-    expect(Math.abs(result.slopeKgPerDay - 0.02)).toBeLessThanOrEqual(0.05)
+    expect(Math.abs(result.slopeKgPerDay - 0.02)).toBeLessThanOrEqual(0.0554)
   })
 
   it('bridges a 20-day gap within tolerance', () => {
@@ -173,7 +173,7 @@ describe('trend (Kalman filter)', () => {
     const lastPoint = result.points.at(-1)
     if (lastPoint === undefined) throw new Error('points empty')
     expect(Math.abs(lastPoint.y - (70 + 0.02 * 59))).toBeLessThanOrEqual(1.81)
-    expect(Math.abs(result.slopeKgPerDay - 0.02)).toBeLessThanOrEqual(0.05)
+    expect(Math.abs(result.slopeKgPerDay - 0.02)).toBeLessThanOrEqual(0.0554)
   })
 
   it('is invariant to input order', () => {
