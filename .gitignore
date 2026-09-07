@@ -6,3 +6,5 @@ data/
 *.local
 coverage/
 __pycache__/
+.omo/
+.playwright-cli/
