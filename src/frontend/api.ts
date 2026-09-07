@@ -85,6 +85,18 @@ export async function checkSession(): Promise<boolean> {
   }
 }
 
+export async function fetchState(): Promise<{ users: User[]; entries: Entry[] }> {
+  const response = await fetch('/api/state', { redirect: 'manual' })
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`)
+  }
+  const payload = (await response.json()) as { users: User[]; entries: Entry[] }
+  if (!Array.isArray(payload.users) || !Array.isArray(payload.entries)) {
+    throw new Error('Invalid state payload')
+  }
+  return payload
+}
+
 function isAuthRedirect(response: Response): boolean {
   if (response.status === 401 || response.status === 403) return true
   if (response.type === 'opaqueredirect') return true

@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import type { ComputedRef } from 'vue'
 import { fetchEntries, createEntry, updateEntry, deleteEntry } from '../api.js'
 import { readCache, upsertEntries, removeEntry as removeCachedEntry, type CacheState } from '../cache.js'
+import { request as requestSync } from './useSync.js'
 import type { Entry, NewEntry, UpdateEntry } from '../types/index.js'
 
 export const entriesByUser = ref<Map<number, Entry[]>>(new Map())
@@ -55,9 +56,12 @@ export function useEntries(userId: number | null) {
         .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
       entriesByUser.value.set(effectiveUserId, cachedEntries)
       loading.value = false
-    } else {
-      loading.value = true
+      error.value = null
+      requestSync()
+      return
     }
+
+    loading.value = true
     error.value = null
 
     try {
@@ -104,6 +108,8 @@ export function useEntries(userId: number | null) {
           entriesByUser.value.set(effectiveUserId, nextEntries)
         }
       }
+      await upsertEntries([entry]).catch(() => undefined)
+      requestSync()
       return entry
     } catch (e) {
       entriesByUser.value.set(effectiveUserId, previousEntries)
@@ -145,9 +151,11 @@ export function useEntries(userId: number | null) {
           } else {
             await adoptEntryRow(effectiveUserId, result.entry)
           }
+          requestSync()
           return null
         case 'gone':
           await adoptEntryRemoval(effectiveUserId, id)
+          requestSync()
           return null
         case 'ok': {
           const currentEntries = entriesByUser.value.get(effectiveUserId)
@@ -159,6 +167,8 @@ export function useEntries(userId: number | null) {
               entriesByUser.value.set(effectiveUserId, nextEntries)
             }
           }
+          await upsertEntries([result.entry]).catch(() => undefined)
+          requestSync()
           return result.entry
         }
       }
@@ -192,6 +202,7 @@ export function useEntries(userId: number | null) {
         case 'conflict':
           if (!result.entry.deleted) {
             await adoptEntryRow(effectiveUserId, result.entry)
+            requestSync()
             return false
           }
           break
@@ -200,6 +211,7 @@ export function useEntries(userId: number | null) {
           break
       }
       await removeCachedEntry(id).catch(() => undefined)
+      requestSync()
       return true
     } catch (e) {
       entriesByUser.value.set(effectiveUserId, previousEntries)

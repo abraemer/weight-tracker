@@ -25,15 +25,18 @@ vi.mock('idb', async (importOriginal) => {
 vi.mock('../../src/frontend/api.js', () => ({
   fetchUsers: vi.fn(),
   createUser: vi.fn(),
+  fetchState: vi.fn(),
 }))
 
-import { fetchUsers, createUser } from '../../src/frontend/api.js'
+import { fetchUsers, createUser, fetchState } from '../../src/frontend/api.js'
 import { useUsers, resetUsersState } from '../../src/frontend/composables/useUsers.js'
+import { resetSyncState } from '../../src/frontend/composables/useSync.js'
 import { writeCache, clearCache } from '../../src/frontend/cache.js'
 import type { User } from '../../src/frontend/types/index.js'
 
 const mockedFetchUsers = vi.mocked(fetchUsers)
 const mockedCreateUser = vi.mocked(createUser)
+const mockedFetchState = vi.mocked(fetchState)
 
 const alice: User = {
   id: 1,
@@ -77,6 +80,7 @@ describe('useUsers composable', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
     resetUsersState()
+    resetSyncState()
     window.localStorage.clear()
     await clearCache()
   })
@@ -118,10 +122,10 @@ describe('useUsers composable', () => {
   })
 
   describe('loadUsers cache-first', () => {
-    it('renders users from a warm cache instantly, without the network resolving', async () => {
+    it('renders users from a warm cache instantly and schedules a background sync instead of a direct fetch', async () => {
       await writeCache({ users: [ghost, bob, alice], entries: [] })
       window.localStorage.setItem('activeUserId', '2')
-      mockedFetchUsers.mockImplementation(() => new Promise<User[]>(() => {}))
+      mockedFetchState.mockImplementation(() => new Promise<never>(() => {}))
 
       const { users, activeUserId, loading, loadUsers } = useUsers()
       void loadUsers()
@@ -131,28 +135,32 @@ describe('useUsers composable', () => {
       })
       expect(loading.value).toBe(false)
       expect(activeUserId.value).toBe(2)
-      expect(mockedFetchUsers).toHaveBeenCalledTimes(1)
+      await vi.waitFor(() => {
+        expect(mockedFetchState).toHaveBeenCalledTimes(1)
+      })
+      expect(mockedFetchUsers).not.toHaveBeenCalled()
     })
 
     it('renders an empty user list instantly from a warm cache with zero users', async () => {
       await writeCache({ users: [], entries: [] })
-      mockedFetchUsers.mockImplementation(() => new Promise<User[]>(() => {}))
+      mockedFetchState.mockImplementation(() => new Promise<never>(() => {}))
 
       const { users, activeUserId, loading, loadUsers } = useUsers()
       void loadUsers()
 
       await vi.waitFor(() => {
-        expect(mockedFetchUsers).toHaveBeenCalledTimes(1)
+        expect(mockedFetchState).toHaveBeenCalledTimes(1)
       })
       expect(users.value).toEqual([])
       expect(loading.value).toBe(false)
       expect(activeUserId.value).toBe(null)
+      expect(mockedFetchUsers).not.toHaveBeenCalled()
     })
 
     it('falls back to the first user when the stored activeUserId is not in the cached users', async () => {
       await writeCache({ users: [bob, alice], entries: [] })
       window.localStorage.setItem('activeUserId', '999')
-      mockedFetchUsers.mockImplementation(() => new Promise<User[]>(() => {}))
+      mockedFetchState.mockImplementation(() => new Promise<never>(() => {}))
 
       const { users, activeUserId, loadUsers } = useUsers()
       void loadUsers()
@@ -161,11 +169,15 @@ describe('useUsers composable', () => {
         expect(users.value).toEqual([alice, bob])
       })
       expect(activeUserId.value).toBe(1)
+      await vi.waitFor(() => {
+        expect(mockedFetchState).toHaveBeenCalledTimes(1)
+      })
+      expect(mockedFetchUsers).not.toHaveBeenCalled()
     })
 
     it('selects the first user when no activeUserId is stored', async () => {
       await writeCache({ users: [bob, alice], entries: [] })
-      mockedFetchUsers.mockImplementation(() => new Promise<User[]>(() => {}))
+      mockedFetchState.mockImplementation(() => new Promise<never>(() => {}))
 
       const { users, activeUserId, loadUsers } = useUsers()
       void loadUsers()
@@ -174,6 +186,10 @@ describe('useUsers composable', () => {
         expect(users.value).toEqual([alice, bob])
       })
       expect(activeUserId.value).toBe(1)
+      await vi.waitFor(() => {
+        expect(mockedFetchState).toHaveBeenCalledTimes(1)
+      })
+      expect(mockedFetchUsers).not.toHaveBeenCalled()
     })
 
     it('keeps the cold-cache network path with spinner flags', async () => {
@@ -245,6 +261,19 @@ describe('useUsers composable', () => {
       expect(result).toEqual(newUser)
       expect(users.value).toHaveLength(2)
       expect(users.value[1]).toEqual(newUser)
+    })
+
+    it('requests a background sync after a successful user creation', async () => {
+      mockedFetchState.mockImplementation(() => new Promise<never>(() => {}))
+      mockedCreateUser.mockResolvedValue(bob)
+
+      const { addUser } = useUsers()
+      const result = await addUser({ name: 'Bob' })
+
+      expect(result).toEqual(bob)
+      await vi.waitFor(() => {
+        expect(mockedFetchState).toHaveBeenCalledTimes(1)
+      })
     })
 
     it('returns null on creation failure', async () => {

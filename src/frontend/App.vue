@@ -61,12 +61,14 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useUsers } from './composables/useUsers.js'
+import { useSync } from './composables/useSync.js'
 import { setErrorHandler, setSessionExpiredHandler, checkSession, isStandalone } from './api.js'
 import UserTabs from './components/UserTabs.vue'
 import AddUserDialog from './components/AddUserDialog.vue'
 import UserView from './components/UserView.vue'
 
 const { users, activeUserId, activeUser, loading, loadUsers, addUser, setActiveUser } = useUsers()
+const { start: startSync, stop: stopSync, setPaused: setSyncPaused } = useSync()
 
 const showAddDialog = ref(false)
 const hasLoadedOnce = ref(false)
@@ -147,6 +149,7 @@ function stopPolling(): void {
 
 onUnmounted(() => {
   stopPolling()
+  stopSync()
 })
 
 async function handleCreateUser(name: string): Promise<void> {
@@ -168,11 +171,16 @@ async function handleCreateUser(name: string): Promise<void> {
 }
 
 onMounted(async () => {
+  startSync()
   await loadUsers()
   hasLoadedOnce.value = true
   if (users.value.length === 0 && !sessionExpired.value) {
     showAddDialog.value = true
   }
+})
+
+watch(sessionExpired, (expired) => {
+  setSyncPaused(expired)
 })
 
 watch(activeUserId, (newId) => {

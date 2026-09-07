@@ -7,9 +7,10 @@ vi.mock('../../src/frontend/api.js', () => ({
   createEntry: vi.fn(),
   updateEntry: vi.fn(),
   deleteEntry: vi.fn(),
+  fetchState: vi.fn(),
 }))
 
-import { fetchEntries, createEntry, updateEntry, deleteEntry } from '../../src/frontend/api.js'
+import { fetchEntries, createEntry, updateEntry, deleteEntry, fetchState } from '../../src/frontend/api.js'
 import {
   useEntries,
   resetEntriesState,
@@ -17,6 +18,7 @@ import {
   entriesByUser,
   operationLoading,
 } from '../../src/frontend/composables/useEntries.js'
+import { resetSyncState } from '../../src/frontend/composables/useSync.js'
 import { writeCache, clearCache } from '../../src/frontend/cache.js'
 import type { User, Entry } from '../../src/frontend/types/index.js'
 
@@ -24,6 +26,7 @@ const mockedFetchEntries = vi.mocked(fetchEntries)
 const mockedCreateEntry = vi.mocked(createEntry)
 const mockedUpdateEntry = vi.mocked(updateEntry)
 const mockedDeleteEntry = vi.mocked(deleteEntry)
+const mockedFetchState = vi.mocked(fetchState)
 
 const alice: User = {
   id: 1,
@@ -97,6 +100,7 @@ describe('useEntries composable', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
     resetEntriesState()
+    resetSyncState()
     await clearCache()
   })
 
@@ -184,9 +188,9 @@ describe('useEntries composable', () => {
   })
 
   describe('loadEntries cache-first', () => {
-    it('renders entries from a warm cache instantly, tombstones filtered, sorted timestamp DESC', async () => {
+    it('renders entries from a warm cache instantly and schedules a background sync instead of a direct fetch, tombstones filtered, sorted timestamp DESC', async () => {
       await writeCache({ users: [alice], entries: [entryTombstone, entryA, entryOtherUser, entryB] })
-      mockedFetchEntries.mockImplementation(() => new Promise<Entry[]>(() => {}))
+      mockedFetchState.mockImplementation(() => new Promise<never>(() => {}))
 
       const { loading, loadEntries } = useEntries(10)
       const entries = entriesFor(10)
@@ -196,22 +200,26 @@ describe('useEntries composable', () => {
         expect(entries.value).toEqual([entryB, entryA])
       })
       expect(loading.value).toBe(false)
-      expect(mockedFetchEntries).toHaveBeenCalledWith(10)
+      await vi.waitFor(() => {
+        expect(mockedFetchState).toHaveBeenCalledTimes(1)
+      })
+      expect(mockedFetchEntries).not.toHaveBeenCalled()
     })
 
     it('renders an empty entries state instantly for a warm-cache user with zero entries', async () => {
       await writeCache({ users: [alice], entries: [entryOtherUser] })
-      mockedFetchEntries.mockImplementation(() => new Promise<Entry[]>(() => {}))
+      mockedFetchState.mockImplementation(() => new Promise<never>(() => {}))
 
       const { loading, loadEntries } = useEntries(30)
       const entries = entriesFor(30)
       void loadEntries()
 
       await vi.waitFor(() => {
-        expect(mockedFetchEntries).toHaveBeenCalledWith(30)
+        expect(mockedFetchState).toHaveBeenCalledTimes(1)
       })
       expect(entries.value).toEqual([])
       expect(loading.value).toBe(false)
+      expect(mockedFetchEntries).not.toHaveBeenCalled()
     })
 
     it('keeps the cold-cache network path with spinner flags', async () => {
@@ -562,6 +570,62 @@ describe('useEntries composable', () => {
       expect(error.value).toBe(null)
       const stored = await readCachedEntries()
       expect(stored.find((e) => e.id === 101)).toBeUndefined()
+    })
+  })
+
+  describe('mutation-triggered background sync', () => {
+    it('requests a sync after a successful addEntry', async () => {
+      mockedFetchState.mockImplementation(() => new Promise<never>(() => {}))
+      const created: Entry = { ...entryB, id: 105 }
+      mockedCreateEntry.mockResolvedValue(created)
+
+      const { addEntry } = useEntries(10)
+      const result = await addEntry({ timestamp: '2024-01-16T10:00:00Z', weight_kg: 71.0 })
+
+      expect(result).toEqual(created)
+      await vi.waitFor(() => {
+        expect(mockedFetchState).toHaveBeenCalledTimes(1)
+      })
+    })
+
+    it('requests a sync after a successful editEntry', async () => {
+      entriesByUser.value = new Map([[10, [entryA]]])
+      mockedFetchState.mockImplementation(() => new Promise<never>(() => {}))
+      mockedUpdateEntry.mockResolvedValue({ kind: 'ok', entry: { ...entryA, weight_kg: 72.5 } })
+
+      const { editEntry } = useEntries(10)
+      const result = await editEntry(101, { weight_kg: 72.5 })
+
+      expect(result).toEqual({ ...entryA, weight_kg: 72.5 })
+      await vi.waitFor(() => {
+        expect(mockedFetchState).toHaveBeenCalledTimes(1)
+      })
+    })
+
+    it('requests a sync after a successful removeEntry', async () => {
+      entriesByUser.value = new Map([[10, [entryA]]])
+      mockedFetchState.mockImplementation(() => new Promise<never>(() => {}))
+      mockedDeleteEntry.mockResolvedValue({ kind: 'ok' })
+
+      const { removeEntry } = useEntries(10)
+      const result = await removeEntry(101)
+
+      expect(result).toBe(true)
+      await vi.waitFor(() => {
+        expect(mockedFetchState).toHaveBeenCalledTimes(1)
+      })
+    })
+
+    it('does not request a sync after a failed mutation', async () => {
+      mockedFetchState.mockImplementation(() => new Promise<never>(() => {}))
+      mockedCreateEntry.mockRejectedValue(new Error('Create failed'))
+
+      const { addEntry, error } = useEntries(10)
+      const result = await addEntry({ timestamp: '2024-01-16T10:00:00Z', weight_kg: 71.0 })
+
+      expect(result).toBe(null)
+      expect(error.value).toBe('Create failed')
+      expect(mockedFetchState).not.toHaveBeenCalled()
     })
   })
 

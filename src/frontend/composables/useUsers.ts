@@ -1,10 +1,11 @@
 import { ref, computed } from 'vue'
 import { fetchUsers, createUser } from '../api.js'
 import { readCache, upsertUsers, type CacheState } from '../cache.js'
+import { request as requestSync } from './useSync.js'
 import type { User, NewUser } from '../types/index.js'
 
-const users = ref<User[]>([])
-const activeUserId = ref<number | null>(null)
+export const users = ref<User[]>([])
+export const activeUserId = ref<number | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 
@@ -36,9 +37,12 @@ export function useUsers() {
         .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id)
       restoreActiveUser(users.value)
       loading.value = false
-    } else {
-      loading.value = true
+      error.value = null
+      requestSync()
+      return
     }
+
+    loading.value = true
     error.value = null
 
     try {
@@ -61,6 +65,8 @@ export function useUsers() {
     try {
       const user = await createUser(data)
       users.value.push(user)
+      await upsertUsers([user]).catch(() => undefined)
+      requestSync()
       return user
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to create user'
