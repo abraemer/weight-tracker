@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { fetchEntries, createEntry, updateEntry, deleteEntry } from '../api.js'
+import { readCache, upsertEntries, type CacheState } from '../cache.js'
 import type { Entry, NewEntry, UpdateEntry } from '../types/index.js'
 
 const entriesByUser = ref<Map<number, Entry[]>>(new Map())
@@ -23,12 +24,25 @@ export function useEntries(userId: number | null) {
       entries.value = []
       return
     }
-    loading.value = true
+    const cached: CacheState | null = await readCache().catch(() => null)
+
+    if (cached !== null) {
+      const cachedEntries = cached.entries
+        .filter((e) => e.user_id === effectiveUserId && !e.deleted)
+        .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+      entriesByUser.value.set(effectiveUserId, cachedEntries)
+      entries.value = cachedEntries
+      loading.value = false
+    } else {
+      loading.value = true
+    }
     error.value = null
+
     try {
       const loadedEntries = await fetchEntries(effectiveUserId)
       entriesByUser.value.set(effectiveUserId, loadedEntries)
       entries.value = loadedEntries
+      await upsertEntries(loadedEntries).catch(() => undefined)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load entries'
     } finally {

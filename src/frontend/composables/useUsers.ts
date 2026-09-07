@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { fetchUsers, createUser } from '../api.js'
+import { readCache, upsertUsers, type CacheState } from '../cache.js'
 import type { User, NewUser } from '../types/index.js'
 
 const users = ref<User[]>([])
@@ -14,6 +15,12 @@ export function resetUsersState(): void {
   error.value = null
 }
 
+function restoreActiveUser(cached: User[]): void {
+  const stored = window.localStorage.getItem('activeUserId')
+  const storedId = stored === null ? Number.NaN : Number.parseInt(stored, 10)
+  activeUserId.value = cached.find((u) => u.id === storedId)?.id ?? cached[0]?.id ?? null
+}
+
 export function useUsers() {
   const activeUser = computed(() => {
     if (activeUserId.value === null) return null
@@ -21,13 +28,26 @@ export function useUsers() {
   })
 
   async function loadUsers(): Promise<void> {
-    loading.value = true
+    const cached: CacheState | null = await readCache().catch(() => null)
+
+    if (cached !== null) {
+      users.value = cached.users
+        .filter((u) => !u.deleted)
+        .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id)
+      restoreActiveUser(users.value)
+      loading.value = false
+    } else {
+      loading.value = true
+    }
     error.value = null
+
     try {
-      users.value = await fetchUsers()
+      const fetched = await fetchUsers()
+      users.value = fetched
       if (activeUserId.value === null && users.value.length > 0) {
         activeUserId.value = users.value[0]!.id
       }
+      await upsertUsers(fetched).catch(() => undefined)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load users'
     } finally {

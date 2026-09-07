@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { nextTick } from 'vue'
+import 'fake-indexeddb/auto'
 
 vi.mock('../../src/frontend/api.js', () => ({
   fetchEntries: vi.fn(),
@@ -10,16 +11,80 @@ vi.mock('../../src/frontend/api.js', () => ({
 
 import { fetchEntries, createEntry, updateEntry, deleteEntry } from '../../src/frontend/api.js'
 import { useEntries, resetEntriesState } from '../../src/frontend/composables/useEntries.js'
+import { writeCache, clearCache } from '../../src/frontend/cache.js'
+import type { User, Entry } from '../../src/frontend/types/index.js'
 
 const mockedFetchEntries = vi.mocked(fetchEntries)
 const mockedCreateEntry = vi.mocked(createEntry)
 const mockedUpdateEntry = vi.mocked(updateEntry)
 const mockedDeleteEntry = vi.mocked(deleteEntry)
 
+const alice: User = {
+  id: 1,
+  name: 'Alice',
+  created_at: '2024-01-01T00:00:00.000Z',
+  updated_at: '2024-01-01T00:00:00.000Z',
+  deleted: false,
+}
+
+const entryA: Entry = {
+  id: 101,
+  user_id: 10,
+  timestamp: '2024-01-15T10:00:00.000Z',
+  weight_kg: 70.5,
+  created_at: '2024-01-15T10:00:00.000Z',
+  updated_at: '2024-01-15T10:00:00.000Z',
+  deleted: false,
+}
+const entryB: Entry = {
+  id: 102,
+  user_id: 10,
+  timestamp: '2024-01-16T10:00:00.000Z',
+  weight_kg: 71.0,
+  created_at: '2024-01-16T10:00:00.000Z',
+  updated_at: '2024-01-16T10:00:00.000Z',
+  deleted: false,
+}
+const entryTombstone: Entry = {
+  id: 103,
+  user_id: 10,
+  timestamp: '2024-01-17T10:00:00.000Z',
+  weight_kg: 72.0,
+  created_at: '2024-01-17T10:00:00.000Z',
+  updated_at: '2024-01-18T10:00:00.000Z',
+  deleted: true,
+}
+const entryOtherUser: Entry = {
+  id: 104,
+  user_id: 20,
+  timestamp: '2024-02-01T10:00:00.000Z',
+  weight_kg: 65.0,
+  created_at: '2024-02-01T10:00:00.000Z',
+  updated_at: '2024-02-01T10:00:00.000Z',
+  deleted: false,
+}
+
+function openRaw(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('weight-tracker')
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+function readStoreAll<T>(db: IDBDatabase, storeName: string): Promise<T[]> {
+  return new Promise((resolve, reject) => {
+    const request: IDBRequest<T[]> = db.transaction(storeName).objectStore(storeName).getAll()
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
 describe('useEntries composable', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
     resetEntriesState()
+    await clearCache()
   })
 
   describe('loadEntries', () => {
@@ -57,6 +122,71 @@ describe('useEntries composable', () => {
       await loadEntries()
 
       expect(error.value).toBe('Failed to load')
+    })
+  })
+
+  describe('loadEntries cache-first', () => {
+    it('renders entries from a warm cache instantly, tombstones filtered, sorted timestamp DESC', async () => {
+      await writeCache({ users: [alice], entries: [entryTombstone, entryA, entryOtherUser, entryB] })
+      mockedFetchEntries.mockImplementation(() => new Promise<Entry[]>(() => {}))
+
+      const { entries, loading, loadEntries } = useEntries(10)
+      void loadEntries()
+
+      await vi.waitFor(() => {
+        expect(entries.value).toEqual([entryB, entryA])
+      })
+      expect(loading.value).toBe(false)
+      expect(mockedFetchEntries).toHaveBeenCalledWith(10)
+    })
+
+    it('renders an empty entries state instantly for a warm-cache user with zero entries', async () => {
+      await writeCache({ users: [alice], entries: [entryOtherUser] })
+      mockedFetchEntries.mockImplementation(() => new Promise<Entry[]>(() => {}))
+
+      const { entries, loading, loadEntries } = useEntries(30)
+      void loadEntries()
+
+      await vi.waitFor(() => {
+        expect(mockedFetchEntries).toHaveBeenCalledWith(30)
+      })
+      expect(entries.value).toEqual([])
+      expect(loading.value).toBe(false)
+    })
+
+    it('keeps the cold-cache network path with spinner flags', async () => {
+      let resolveFetch: (value: Entry[]) => void = () => {}
+      const pending = new Promise<Entry[]>((resolve) => {
+        resolveFetch = resolve
+      })
+      mockedFetchEntries.mockReturnValue(pending)
+
+      const { entries, loading, loadEntries } = useEntries(10)
+      const promise = loadEntries()
+
+      await vi.waitFor(() => {
+        expect(loading.value).toBe(true)
+      })
+      expect(entries.value).toEqual([])
+
+      resolveFetch([entryB])
+      await promise
+
+      expect(entries.value).toEqual([entryB])
+      expect(loading.value).toBe(false)
+    })
+
+    it('writes successful network results to the cache', async () => {
+      mockedFetchEntries.mockResolvedValue([entryA])
+
+      const { entries, loadEntries } = useEntries(10)
+      await loadEntries()
+
+      expect(entries.value).toEqual([entryA])
+      const db = await openRaw()
+      const stored = await readStoreAll<Entry>(db, 'entries')
+      db.close()
+      expect(stored).toEqual([entryA])
     })
   })
 
