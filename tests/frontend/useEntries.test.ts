@@ -10,7 +10,13 @@ vi.mock('../../src/frontend/api.js', () => ({
 }))
 
 import { fetchEntries, createEntry, updateEntry, deleteEntry } from '../../src/frontend/api.js'
-import { useEntries, resetEntriesState } from '../../src/frontend/composables/useEntries.js'
+import {
+  useEntries,
+  resetEntriesState,
+  entriesFor,
+  entriesByUser,
+  operationLoading,
+} from '../../src/frontend/composables/useEntries.js'
 import { writeCache, clearCache } from '../../src/frontend/cache.js'
 import type { User, Entry } from '../../src/frontend/types/index.js'
 
@@ -80,11 +86,61 @@ function readStoreAll<T>(db: IDBDatabase, storeName: string): Promise<T[]> {
   })
 }
 
+async function readCachedEntries(): Promise<Entry[]> {
+  const db = await openRaw()
+  const stored = await readStoreAll<Entry>(db, 'entries')
+  db.close()
+  return stored
+}
+
 describe('useEntries composable', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
     resetEntriesState()
     await clearCache()
+  })
+
+  describe('derived entriesFor state', () => {
+    it('updates the derived computed when the entriesByUser Map instance is replaced wholesale', () => {
+      const entries = entriesFor(10)
+      expect(entries.value).toEqual([])
+
+      entriesByUser.value = new Map([
+        [10, [entryB, entryA]],
+        [20, [entryOtherUser]],
+      ])
+
+      expect(entries.value).toEqual([entryB, entryA])
+      expect(mockedFetchEntries).not.toHaveBeenCalled()
+    })
+
+    it('exposes operationLoading as a module-level ref of Map', () => {
+      expect(operationLoading.value).toBeInstanceOf(Map)
+    })
+
+    it('shows temp negative-id rows in the derived list during in-flight adds', async () => {
+      let resolveCreate: (value: Entry) => void = () => {}
+      const pending = new Promise<Entry>((resolve) => {
+        resolveCreate = resolve
+      })
+      mockedCreateEntry.mockReturnValue(pending)
+
+      const { addEntry } = useEntries(10)
+      const entries = entriesFor(10)
+      const promise = addEntry({ timestamp: '2024-01-16T10:00:00Z', weight_kg: 71.0 })
+
+      await vi.waitFor(() => {
+        expect(entries.value).toHaveLength(1)
+      })
+      expect(entries.value[0]!.id).toBeLessThan(0)
+      expect(entries.value[0]!.user_id).toBe(10)
+
+      resolveCreate({ ...entryA, id: 105 })
+      await promise
+
+      expect(entries.value).toHaveLength(1)
+      expect(entries.value[0]!.id).toBe(105)
+    })
   })
 
   describe('loadEntries', () => {
@@ -100,7 +156,8 @@ describe('useEntries composable', () => {
       ]
       mockedFetchEntries.mockResolvedValue(mockEntries)
 
-      const { entries, loading, loadEntries } = useEntries(10)
+      const { loading, loadEntries } = useEntries(10)
+      const entries = entriesFor(10)
       await loadEntries()
 
       expect(loading.value).toBe(false)
@@ -108,7 +165,8 @@ describe('useEntries composable', () => {
     })
 
     it('handles null userId', async () => {
-      const { entries, loadEntries } = useEntries(null)
+      const { loadEntries } = useEntries(null)
+      const entries = entriesFor(10)
       await loadEntries()
 
       expect(entries.value).toEqual([])
@@ -130,7 +188,8 @@ describe('useEntries composable', () => {
       await writeCache({ users: [alice], entries: [entryTombstone, entryA, entryOtherUser, entryB] })
       mockedFetchEntries.mockImplementation(() => new Promise<Entry[]>(() => {}))
 
-      const { entries, loading, loadEntries } = useEntries(10)
+      const { loading, loadEntries } = useEntries(10)
+      const entries = entriesFor(10)
       void loadEntries()
 
       await vi.waitFor(() => {
@@ -144,7 +203,8 @@ describe('useEntries composable', () => {
       await writeCache({ users: [alice], entries: [entryOtherUser] })
       mockedFetchEntries.mockImplementation(() => new Promise<Entry[]>(() => {}))
 
-      const { entries, loading, loadEntries } = useEntries(30)
+      const { loading, loadEntries } = useEntries(30)
+      const entries = entriesFor(30)
       void loadEntries()
 
       await vi.waitFor(() => {
@@ -161,7 +221,8 @@ describe('useEntries composable', () => {
       })
       mockedFetchEntries.mockReturnValue(pending)
 
-      const { entries, loading, loadEntries } = useEntries(10)
+      const { loading, loadEntries } = useEntries(10)
+      const entries = entriesFor(10)
       const promise = loadEntries()
 
       await vi.waitFor(() => {
@@ -179,13 +240,12 @@ describe('useEntries composable', () => {
     it('writes successful network results to the cache', async () => {
       mockedFetchEntries.mockResolvedValue([entryA])
 
-      const { entries, loadEntries } = useEntries(10)
+      const { loadEntries } = useEntries(10)
+      const entries = entriesFor(10)
       await loadEntries()
 
       expect(entries.value).toEqual([entryA])
-      const db = await openRaw()
-      const stored = await readStoreAll<Entry>(db, 'entries')
-      db.close()
+      const stored = await readCachedEntries()
       expect(stored).toEqual([entryA])
     })
   })
@@ -212,7 +272,8 @@ describe('useEntries composable', () => {
       mockedFetchEntries.mockResolvedValue(mockEntries)
       mockedCreateEntry.mockResolvedValue(createdEntry)
 
-      const { entries, addEntry, loadEntries } = useEntries(20)
+      const { addEntry, loadEntries } = useEntries(20)
+      const entries = entriesFor(20)
       await loadEntries()
 
       const result = await addEntry(newEntryData)
@@ -235,7 +296,8 @@ describe('useEntries composable', () => {
       mockedFetchEntries.mockResolvedValue(mockEntries)
       mockedCreateEntry.mockRejectedValue(new Error('Create failed'))
 
-      const { entries, addEntry, loadEntries, error } = useEntries(21)
+      const { addEntry, loadEntries, error } = useEntries(21)
+      const entries = entriesFor(21)
       await loadEntries()
       const originalLength = entries.value.length
 
@@ -267,9 +329,10 @@ describe('useEntries composable', () => {
       ]
       const updatedEntry = { ...mockEntries[0]!, weight_kg: 71.0 }
       mockedFetchEntries.mockResolvedValue(mockEntries)
-      mockedUpdateEntry.mockResolvedValue(updatedEntry)
+      mockedUpdateEntry.mockResolvedValue({ kind: 'ok', entry: updatedEntry })
 
-      const { entries, editEntry, loadEntries } = useEntries(30)
+      const { editEntry, loadEntries } = useEntries(30)
+      const entries = entriesFor(30)
       await loadEntries()
 
       const result = await editEntry(100, { weight_kg: 71.0 })
@@ -291,7 +354,8 @@ describe('useEntries composable', () => {
       mockedFetchEntries.mockResolvedValue(mockEntries)
       mockedUpdateEntry.mockRejectedValue(new Error('Update failed'))
 
-      const { entries, editEntry, loadEntries, error } = useEntries(31)
+      const { editEntry, loadEntries, error } = useEntries(31)
+      const entries = entriesFor(31)
       await loadEntries()
       const originalEntry = { ...entries.value.find((e) => e.id === 101)! }
 
@@ -300,6 +364,66 @@ describe('useEntries composable', () => {
       expect(result).toBe(null)
       expect(entries.value.find((e) => e.id === 101)).toEqual(originalEntry)
       expect(error.value).toBe('Update failed')
+    })
+
+    it('sends the observed version to the api', async () => {
+      entriesByUser.value = new Map([[10, [entryA]]])
+      mockedUpdateEntry.mockResolvedValue({ kind: 'ok', entry: entryA })
+
+      const { editEntry } = useEntries(10)
+      await editEntry(101, { weight_kg: 71.0 })
+
+      expect(mockedUpdateEntry).toHaveBeenCalledWith(101, { weight_kg: 71.0 }, entryA.updated_at)
+    })
+
+    it('adopts the newest live server row on conflict without surfacing an error', async () => {
+      await writeCache({ users: [alice], entries: [entryA, entryB] })
+      entriesByUser.value = new Map([[10, [entryB, entryA]]])
+      const serverRow: Entry = { ...entryA, weight_kg: 99.5, updated_at: '2024-02-01T10:00:00.000Z' }
+      mockedUpdateEntry.mockResolvedValue({ kind: 'conflict', entry: serverRow })
+
+      const { editEntry, error } = useEntries(10)
+      const entries = entriesFor(10)
+      const result = await editEntry(101, { weight_kg: 50 })
+
+      expect(result).toBe(null)
+      expect(entries.value.find((e) => e.id === 101)).toEqual(serverRow)
+      expect(error.value).toBe(null)
+      const stored = await readCachedEntries()
+      expect(stored.find((e) => e.id === 101)).toEqual(serverRow)
+    })
+
+    it('removes the row from state and cache when the server newest is a tombstone', async () => {
+      await writeCache({ users: [alice], entries: [entryA, entryB] })
+      entriesByUser.value = new Map([[10, [entryB, entryA]]])
+      const serverTombstone: Entry = { ...entryA, deleted: true, updated_at: '2024-02-01T10:00:00.000Z' }
+      mockedUpdateEntry.mockResolvedValue({ kind: 'conflict', entry: serverTombstone })
+
+      const { editEntry, error } = useEntries(10)
+      const entries = entriesFor(10)
+      const result = await editEntry(101, { weight_kg: 50 })
+
+      expect(result).toBe(null)
+      expect(entries.value.find((e) => e.id === 101)).toBeUndefined()
+      expect(error.value).toBe(null)
+      const stored = await readCachedEntries()
+      expect(stored.find((e) => e.id === 101)).toBeUndefined()
+    })
+
+    it('removes the row from state and cache on gone (404)', async () => {
+      await writeCache({ users: [alice], entries: [entryA, entryB] })
+      entriesByUser.value = new Map([[10, [entryB, entryA]]])
+      mockedUpdateEntry.mockResolvedValue({ kind: 'gone' })
+
+      const { editEntry, error } = useEntries(10)
+      const entries = entriesFor(10)
+      const result = await editEntry(101, { weight_kg: 50 })
+
+      expect(result).toBe(null)
+      expect(entries.value.find((e) => e.id === 101)).toBeUndefined()
+      expect(error.value).toBe(null)
+      const stored = await readCachedEntries()
+      expect(stored.find((e) => e.id === 101)).toBeUndefined()
     })
   })
 
@@ -322,9 +446,10 @@ describe('useEntries composable', () => {
         },
       ]
       mockedFetchEntries.mockResolvedValue(mockEntries)
-      mockedDeleteEntry.mockResolvedValue(undefined)
+      mockedDeleteEntry.mockResolvedValue({ kind: 'ok' })
 
-      const { entries, removeEntry, loadEntries } = useEntries(40)
+      const { removeEntry, loadEntries } = useEntries(40)
+      const entries = entriesFor(40)
       await loadEntries()
 
       const result = await removeEntry(200)
@@ -347,7 +472,8 @@ describe('useEntries composable', () => {
       mockedFetchEntries.mockResolvedValue(mockEntries)
       mockedDeleteEntry.mockRejectedValue(new Error('Delete failed'))
 
-      const { entries, removeEntry, loadEntries, error } = useEntries(41)
+      const { removeEntry, loadEntries, error } = useEntries(41)
+      const entries = entriesFor(41)
       await loadEntries()
       const originalLength = entries.value.length
 
@@ -356,6 +482,86 @@ describe('useEntries composable', () => {
       expect(result).toBe(false)
       expect(entries.value).toHaveLength(originalLength)
       expect(error.value).toBe('Delete failed')
+    })
+
+    it('sends the observed version as a query param to the api', async () => {
+      entriesByUser.value = new Map([[10, [entryA]]])
+      mockedDeleteEntry.mockResolvedValue({ kind: 'ok' })
+
+      const { removeEntry } = useEntries(10)
+      await removeEntry(101)
+
+      expect(mockedDeleteEntry).toHaveBeenCalledWith(101, entryA.updated_at)
+    })
+
+    it('removes the row from state and cache immediately on plain success', async () => {
+      await writeCache({ users: [alice], entries: [entryA, entryB] })
+      entriesByUser.value = new Map([[10, [entryB, entryA]]])
+      mockedDeleteEntry.mockResolvedValue({ kind: 'ok' })
+
+      const { removeEntry, error } = useEntries(10)
+      const entries = entriesFor(10)
+      const result = await removeEntry(101)
+
+      expect(result).toBe(true)
+      expect(entries.value.find((e) => e.id === 101)).toBeUndefined()
+      expect(entries.value).toEqual([entryB])
+      expect(error.value).toBe(null)
+      const stored = await readCachedEntries()
+      expect(stored.find((e) => e.id === 101)).toBeUndefined()
+      expect(stored.find((e) => e.id === 102)).toEqual(entryB)
+    })
+
+    it('restores the server row on conflict with a live entry', async () => {
+      await writeCache({ users: [alice], entries: [entryA, entryB] })
+      entriesByUser.value = new Map([[10, [entryB, entryA]]])
+      const serverRow: Entry = { ...entryA, weight_kg: 99.5, updated_at: '2024-02-01T10:00:00.000Z' }
+      mockedDeleteEntry.mockResolvedValue({ kind: 'conflict', entry: serverRow })
+
+      const { removeEntry, error } = useEntries(10)
+      const entries = entriesFor(10)
+      const result = await removeEntry(101)
+
+      expect(result).toBe(false)
+      expect(entries.value.find((e) => e.id === 101)).toEqual(serverRow)
+      expect(error.value).toBe(null)
+      const stored = await readCachedEntries()
+      expect(stored.find((e) => e.id === 101)).toEqual(serverRow)
+    })
+
+    it('keeps the row removed when the conflict is a tombstone', async () => {
+      await writeCache({ users: [alice], entries: [entryA, entryB] })
+      entriesByUser.value = new Map([[10, [entryB, entryA]]])
+      const serverTombstone: Entry = { ...entryA, deleted: true, updated_at: '2024-02-01T10:00:00.000Z' }
+      mockedDeleteEntry.mockResolvedValue({ kind: 'conflict', entry: serverTombstone })
+
+      const { removeEntry, error } = useEntries(10)
+      const entries = entriesFor(10)
+      const result = await removeEntry(101)
+
+      expect(result).toBe(true)
+      expect(entries.value.find((e) => e.id === 101)).toBeUndefined()
+      expect(entries.value).toEqual([entryB])
+      expect(error.value).toBe(null)
+      const stored = await readCachedEntries()
+      expect(stored.find((e) => e.id === 101)).toBeUndefined()
+    })
+
+    it('stays deleted on gone (404) and drops the row from cache', async () => {
+      await writeCache({ users: [alice], entries: [entryA, entryB] })
+      entriesByUser.value = new Map([[10, [entryB, entryA]]])
+      mockedDeleteEntry.mockResolvedValue({ kind: 'gone' })
+
+      const { removeEntry, error } = useEntries(10)
+      const entries = entriesFor(10)
+      const result = await removeEntry(101)
+
+      expect(result).toBe(true)
+      expect(entries.value.find((e) => e.id === 101)).toBeUndefined()
+      expect(entries.value).toEqual([entryB])
+      expect(error.value).toBe(null)
+      const stored = await readCachedEntries()
+      expect(stored.find((e) => e.id === 101)).toBeUndefined()
     })
   })
 

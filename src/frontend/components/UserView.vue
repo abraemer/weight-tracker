@@ -24,7 +24,7 @@
 
 <script setup lang="ts">
 import { watch, computed } from 'vue'
-import { useEntries } from '../composables/useEntries.js'
+import { entriesFor, useEntries } from '../composables/useEntries.js'
 import WeightChart from './WeightChart.vue'
 import WeightTable from './WeightTable.vue'
 import type { NewEntry, UpdateEntry } from '../types/index.js'
@@ -33,8 +33,10 @@ const props = defineProps<{
   userId: number
 }>()
 
-const { entries, loading, loadEntries, addEntry, editEntry, removeEntry, isOperationLoading } =
+const { loading, loadEntries, addEntry, editEntry, removeEntry, isOperationLoading } =
   useEntries(props.userId)
+
+const entries = computed(() => entriesFor(props.userId).value)
 
 const isSaving = computed(() => {
   return isOperationLoading(`add-${props.userId}`)

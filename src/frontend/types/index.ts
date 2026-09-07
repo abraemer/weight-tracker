@@ -33,3 +33,7 @@ export interface UpdateEntry {
 export interface ApiError {
   error: string
 }
+
+export type UpdateEntryResult = { kind: 'ok'; entry: Entry } | { kind: 'conflict'; entry: Entry } | { kind: 'gone' }
+
+export type DeleteEntryResult = { kind: 'ok' } | { kind: 'conflict'; entry: Entry } | { kind: 'gone' }

@@ -1,4 +1,13 @@
-import type { User, Entry, NewUser, NewEntry, UpdateEntry, ApiError } from './types/index.js'
+import type {
+  User,
+  Entry,
+  NewUser,
+  NewEntry,
+  UpdateEntry,
+  ApiError,
+  UpdateEntryResult,
+  DeleteEntryResult,
+} from './types/index.js'
 
 export function localToUtc(localDateTime: string): string {
   const date = new Date(localDateTime)
@@ -106,6 +115,53 @@ async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<R
   return fetch(input, { redirect: 'manual', ...init })
 }
 
+function isEntryRow(value: unknown): value is Entry {
+  if (typeof value !== 'object' || value === null) return false
+  const record = value as Record<string, unknown>
+  return (
+    typeof record.id === 'number' &&
+    typeof record.user_id === 'number' &&
+    typeof record.timestamp === 'string' &&
+    typeof record.weight_kg === 'number' &&
+    typeof record.created_at === 'string' &&
+    typeof record.updated_at === 'string' &&
+    typeof record.deleted === 'boolean'
+  )
+}
+
+async function readBody(response: Response): Promise<unknown> {
+  try {
+    return await response.json()
+  } catch {
+    return null
+  }
+}
+
+function conflictEntry(body: unknown): Entry | null {
+  if (typeof body !== 'object' || body === null) return null
+  const record = body as Record<string, unknown>
+  if (record.error !== 'conflict') return null
+  if (!isEntryRow(record.row)) return null
+  return record.row
+}
+
+function bodyErrorMessage(body: unknown, status: number): string {
+  if (typeof body === 'object' && body !== null) {
+    const record = body as Record<string, unknown>
+    if (typeof record.error === 'string' && record.error !== '') {
+      return record.error
+    }
+    return 'An error occurred'
+  }
+  return `Request failed with status ${status}`
+}
+
+async function failMutation(response: Response, body: unknown): Promise<never> {
+  const message = bodyErrorMessage(body, response.status)
+  showError?.(message)
+  throw new Error(message)
+}
+
 export async function fetchUsers(): Promise<User[]> {
   const response = await apiFetch('/api/users')
   return handleResponse<User[]>(response)
@@ -134,18 +190,44 @@ export async function createEntry(userId: number, data: NewEntry): Promise<Entry
   return handleResponse<Entry>(response)
 }
 
-export async function updateEntry(id: number, data: UpdateEntry): Promise<Entry> {
+export async function updateEntry(
+  id: number,
+  data: UpdateEntry,
+  updatedAt?: string
+): Promise<UpdateEntryResult> {
   const response = await apiFetch(`/api/entries/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(updatedAt === undefined ? data : { ...data, updated_at: updatedAt }),
   })
-  return handleResponse<Entry>(response)
+  if (isAuthRedirect(response)) handleSessionExpired()
+  if (response.status === 404) return { kind: 'gone' }
+  if (!response.ok) {
+    const body = await readBody(response)
+    if (response.status === 409) {
+      const entry = conflictEntry(body)
+      if (entry !== null) return { kind: 'conflict', entry }
+    }
+    return failMutation(response, body)
+  }
+  const entry = (await response.json()) as Entry
+  return { kind: 'ok', entry }
 }
 
-export async function deleteEntry(id: number): Promise<void> {
-  const response = await apiFetch(`/api/entries/${id}`, {
+export async function deleteEntry(id: number, updatedAt?: string): Promise<DeleteEntryResult> {
+  const query = updatedAt === undefined ? '' : `?updated_at=${encodeURIComponent(updatedAt)}`
+  const response = await apiFetch(`/api/entries/${id}${query}`, {
     method: 'DELETE',
   })
-  return handleResponse<void>(response)
+  if (isAuthRedirect(response)) handleSessionExpired()
+  if (response.status === 404) return { kind: 'gone' }
+  if (!response.ok) {
+    const body = await readBody(response)
+    if (response.status === 409) {
+      const entry = conflictEntry(body)
+      if (entry !== null) return { kind: 'conflict', entry }
+    }
+    return failMutation(response, body)
+  }
+  return { kind: 'ok' }
 }
