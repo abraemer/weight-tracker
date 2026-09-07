@@ -50,6 +50,8 @@ export function useEntries(userId: number | null) {
       timestamp: data.timestamp,
       weight_kg: data.weight_kg,
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      deleted: false,
     }
 
     const userEntries = entriesByUser.value.get(effectiveUserId) ?? []

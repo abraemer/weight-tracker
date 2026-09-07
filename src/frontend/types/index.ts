@@ -2,6 +2,8 @@ export interface User {
   id: number
   name: string
   created_at: string
+  updated_at: string
+  deleted: boolean
 }
 
 export interface Entry {
@@ -10,6 +12,8 @@ export interface Entry {
   timestamp: string
   weight_kg: number
   created_at: string
+  updated_at: string
+  deleted: boolean
 }
 
 export interface NewUser {
