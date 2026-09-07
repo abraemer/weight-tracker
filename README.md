@@ -81,6 +81,12 @@ docker run -d \
 
 The app will be available at `http://localhost:3000`.
 
+> **Upgrade note:** back up the `weight-tracker-data` volume before
+> upgrading. The container runs a schema migration on start, directly against
+> the live database in the volume. The migration is additive-only and
+> idempotent (safe to run twice), but a volume backup is the safe belt
+> before any upgrade.
+
 ### Environment Variables
 
 | Variable        | Default                | Description               |
@@ -110,7 +116,8 @@ network as the app container.
 
 Errors are returned as JSON `{ "error": "message" }` with status `400`
 (validation), `404` (not found), or `500` (server error). Successful creates
-return `201`; deletions return `204`.
+return `201`; deletions return `204`. Stale writes are rejected with `409`
+(see [Versioning and conflicts](#versioning-and-conflicts)).
 
 ### Users
 
@@ -129,6 +136,43 @@ return `201`; deletions return `204`.
 | POST   | /api/users/:userId/entries | Create entry         |
 | PUT    | /api/entries/:id           | Update entry         |
 | DELETE | /api/entries/:id           | Delete entry         |
+
+### State
+
+| Method | Endpoint   | Description    |
+| ------ | ---------- | -------------- |
+| GET    | /api/state | Full-state sync payload: `{ users, entries }` — all rows including tombstoned ones, no pagination, served with `Cache-Control: no-store` |
+
+### Versioning and conflicts
+
+Every row carries a server-generated `updated_at` timestamp (UTC, ISO-8601
+with millisecond precision). Mutations send back the version they observed:
+PUT carries `updated_at` in the JSON body, and DELETE takes it as the
+`?updated_at=` query parameter. If the row changed more recently than the
+observed version, the write is stale and the server responds with
+`409 { "error": "conflict", "row": <newest row> }` — the client adopts the
+returned row, so the newest version always wins. If DELETE omits
+`?updated_at=`, the delete is unconditional; that legacy path is what the
+utility scripts use.
+
+### Tombstones
+
+Deletes are soft. A deleted row gets a `deleted` flag and a bumped
+`updated_at` instead of being removed. The normal endpoints (user lists,
+entry lists) exclude tombstoned rows; `GET /api/state` includes them so
+deletions propagate to every device. Tombstones are never garbage-collected.
+Deleting a user tombstones the user and all their entries in one atomic
+transaction.
+
+## Local-First Behavior
+
+The frontend keeps a full mirror of the server state in IndexedDB on the
+device. The app opens and switches users instantly from this local cache,
+then a background sync pulls the complete state from `GET /api/state` on app
+open, whenever the tab becomes visible, every 60 seconds while visible, and
+after each change. Conflicts resolve newest-version-wins (see
+[Versioning and conflicts](#versioning-and-conflicts)). Writes still
+require the server — there is no offline editing.
 
 ## Utility Scripts
 

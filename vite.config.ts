@@ -89,6 +89,10 @@ export default defineConfig({
             },
           },
           {
+            urlPattern: /\/api\/state/,
+            handler: 'NetworkOnly',
+          },
+          {
             urlPattern: /\/api\/.*/,
             handler: 'NetworkFirst',
             options: {
