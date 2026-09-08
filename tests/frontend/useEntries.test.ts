@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { nextTick } from 'vue'
 import 'fake-indexeddb/auto'
 
@@ -10,6 +10,11 @@ vi.mock('../../src/frontend/api.js', () => ({
   fetchState: vi.fn(),
 }))
 
+vi.mock('../../src/frontend/cache.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/frontend/cache.js')>()
+  return { ...actual, readCache: vi.fn(actual.readCache) }
+})
+
 import { fetchEntries, createEntry, updateEntry, deleteEntry, fetchState } from '../../src/frontend/api.js'
 import {
   useEntries,
@@ -19,7 +24,7 @@ import {
   operationLoading,
 } from '../../src/frontend/composables/useEntries.js'
 import { resetSyncState } from '../../src/frontend/composables/useSync.js'
-import { writeCache, clearCache } from '../../src/frontend/cache.js'
+import { readCache, writeCache, clearCache } from '../../src/frontend/cache.js'
 import type { User, Entry } from '../../src/frontend/types/index.js'
 
 const mockedFetchEntries = vi.mocked(fetchEntries)
@@ -27,6 +32,7 @@ const mockedCreateEntry = vi.mocked(createEntry)
 const mockedUpdateEntry = vi.mocked(updateEntry)
 const mockedDeleteEntry = vi.mocked(deleteEntry)
 const mockedFetchState = vi.mocked(fetchState)
+const mockedReadCache = vi.mocked(readCache)
 
 const alice: User = {
   id: 1,
@@ -188,38 +194,74 @@ describe('useEntries composable', () => {
   })
 
   describe('loadEntries cache-first', () => {
-    it('renders entries from a warm cache instantly and schedules a background sync instead of a direct fetch, tombstones filtered, sorted timestamp DESC', async () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('renders entries from a warm cache instantly with no direct fetch and no background sync, tombstones filtered, sorted timestamp DESC', async () => {
+      vi.useFakeTimers({
+        toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'],
+      })
       await writeCache({ users: [alice], entries: [entryTombstone, entryA, entryOtherUser, entryB] })
       mockedFetchState.mockImplementation(() => new Promise<never>(() => {}))
 
       const { loading, loadEntries } = useEntries(10)
       const entries = entriesFor(10)
-      void loadEntries()
+      await loadEntries()
 
-      await vi.waitFor(() => {
-        expect(entries.value).toEqual([entryB, entryA])
-      })
+      expect(entries.value).toEqual([entryB, entryA])
       expect(loading.value).toBe(false)
-      await vi.waitFor(() => {
-        expect(mockedFetchState).toHaveBeenCalledTimes(1)
-      })
       expect(mockedFetchEntries).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(350)
+      expect(mockedFetchState).not.toHaveBeenCalled()
     })
 
-    it('renders an empty entries state instantly for a warm-cache user with zero entries', async () => {
+    it('renders an empty entries state instantly for a warm-cache user with zero entries, with no background sync', async () => {
+      vi.useFakeTimers({
+        toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'],
+      })
       await writeCache({ users: [alice], entries: [entryOtherUser] })
       mockedFetchState.mockImplementation(() => new Promise<never>(() => {}))
 
       const { loading, loadEntries } = useEntries(30)
       const entries = entriesFor(30)
-      void loadEntries()
+      await loadEntries()
 
-      await vi.waitFor(() => {
-        expect(mockedFetchState).toHaveBeenCalledTimes(1)
-      })
       expect(entries.value).toEqual([])
       expect(loading.value).toBe(false)
       expect(mockedFetchEntries).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(350)
+      expect(mockedFetchState).not.toHaveBeenCalled()
+    })
+
+    it('falls back to the cache when the user has no in-memory list', async () => {
+      await writeCache({ users: [alice], entries: [entryTombstone, entryA, entryOtherUser, entryB] })
+      mockedFetchState.mockImplementation(() => new Promise<never>(() => {}))
+
+      const { loadEntries } = useEntries(10)
+      const entries = entriesFor(10)
+      await loadEntries()
+
+      expect(mockedReadCache).toHaveBeenCalledTimes(1)
+      expect(entries.value).toEqual([entryB, entryA])
+      expect(mockedFetchEntries).not.toHaveBeenCalled()
+    })
+
+    it('schedules no background sync after a cache-read load within the debounce window', async () => {
+      vi.useFakeTimers({
+        toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'],
+      })
+      await writeCache({ users: [alice], entries: [entryA, entryOtherUser] })
+      mockedFetchState.mockImplementation(() => new Promise<never>(() => {}))
+
+      const { loadEntries } = useEntries(10)
+      const entries = entriesFor(10)
+      await loadEntries()
+
+      expect(entries.value).toEqual([entryA])
+      expect(mockedReadCache).toHaveBeenCalledTimes(1)
+      await vi.advanceTimersByTimeAsync(350)
+      expect(mockedFetchState).not.toHaveBeenCalled()
     })
 
     it('keeps the cold-cache network path with spinner flags', async () => {
@@ -255,6 +297,43 @@ describe('useEntries composable', () => {
       expect(entries.value).toEqual([entryA])
       const stored = await readCachedEntries()
       expect(stored).toEqual([entryA])
+    })
+  })
+
+  describe('loadEntries switch fast path', () => {
+    it('serves an already-viewed user from memory without touching the cache or network', async () => {
+      const inMemory = [entryB, entryA]
+      entriesByUser.value = new Map([[10, inMemory]])
+      const mapBefore = entriesByUser.value
+      const listBefore = entriesByUser.value.get(10)
+      await writeCache({ users: [alice], entries: [entryA, entryB, entryOtherUser, entryTombstone] })
+      mockedFetchState.mockImplementation(() => new Promise<never>(() => {}))
+
+      const { loading, error, loadEntries } = useEntries(10)
+      await loadEntries()
+
+      expect(mockedReadCache).not.toHaveBeenCalled()
+      expect(mockedFetchEntries).not.toHaveBeenCalled()
+      expect(mockedFetchState).not.toHaveBeenCalled()
+      expect(entriesByUser.value).toBe(mapBefore)
+      expect(entriesByUser.value.get(10)).toBe(listBefore)
+      expect(loading.value).toBe(false)
+      expect(error.value).toBe(null)
+    })
+
+    it('treats a zero-entry user with a present empty list as a memory hit', async () => {
+      entriesByUser.value = new Map([[30, []]])
+      await writeCache({ users: [alice], entries: [entryOtherUser] })
+      mockedFetchState.mockImplementation(() => new Promise<never>(() => {}))
+
+      const { loadEntries } = useEntries(30)
+      const entries = entriesFor(30)
+      await loadEntries()
+
+      expect(entries.value).toEqual([])
+      expect(mockedReadCache).not.toHaveBeenCalled()
+      expect(mockedFetchEntries).not.toHaveBeenCalled()
+      expect(mockedFetchState).not.toHaveBeenCalled()
     })
   })
 

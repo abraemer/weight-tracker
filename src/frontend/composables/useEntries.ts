@@ -48,6 +48,7 @@ export function useEntries(userId: number | null) {
   async function loadEntries(targetUserId?: number): Promise<void> {
     const effectiveUserId = targetUserId ?? userId
     if (effectiveUserId === null) return
+    if (entriesByUser.value.has(effectiveUserId)) return
     const cached: CacheState | null = await readCache().catch(() => null)
 
     if (cached !== null) {
@@ -57,7 +58,6 @@ export function useEntries(userId: number | null) {
       entriesByUser.value.set(effectiveUserId, cachedEntries)
       loading.value = false
       error.value = null
-      requestSync()
       return
     }
 
