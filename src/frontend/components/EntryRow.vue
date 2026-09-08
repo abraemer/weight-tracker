@@ -160,7 +160,7 @@ function requestDelete(): void {
   border-radius: 50%;
   padding: 0;
   background-color: transparent;
-  color: rgb(var(--v-theme-on-surface-variant));
+  color: rgb(var(--v-theme-on-surface));
   font-size: 1.25rem;
   line-height: 1;
   cursor: pointer;
@@ -184,10 +184,6 @@ function requestDelete(): void {
 .weight-row-btn.weight-row-btn--busy {
   cursor: wait;
   opacity: 0.6;
-}
-
-:global(.v-theme--dark .weight-row-btn) {
-  color: rgb(var(--v-theme-on-surface));
 }
 
 .weight-row-btn--confirm {
