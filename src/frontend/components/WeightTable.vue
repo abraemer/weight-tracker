@@ -2,7 +2,7 @@
   <v-card>
     <v-card-title> Weight Entries </v-card-title>
 
-    <v-table class="weight-table">
+    <v-table ref="tableRef" class="weight-table">
       <thead>
         <tr>
           <th>Date</th>
@@ -63,15 +63,29 @@
           </td>
         </tr>
 
+        <tr
+          v-if="topSpacerHeight > 0"
+          class="table-spacer"
+          :style="{ height: `${topSpacerHeight}px` }"
+        ></tr>
+
         <EntryRow
-          v-for="entry in sortedEntries"
+          v-for="entry in renderedEntries"
           :key="entry.id"
           :entry="entry"
           :saving-edit="editLoading(entry.id)"
           :saving-delete="deleteLoading(entry.id)"
+          @edit-start="onEditStart"
+          @edit-end="onEditEnd"
           @update="handleUpdate"
           @delete-request="openDeleteDialog"
         />
+
+        <tr
+          v-if="bottomSpacerHeight > 0"
+          class="table-spacer"
+          :style="{ height: `${bottomSpacerHeight}px` }"
+        ></tr>
       </tbody>
     </v-table>
 
@@ -101,7 +115,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { getCurrentLocalDateTime, localToUtc, formatLocalDateTime } from '../api.js'
 import type { Entry, UpdateEntry, NewEntry } from '../types/index.js'
 import EntryRow from './EntryRow.vue'
@@ -133,6 +147,49 @@ const sortedEntries = computed(() => {
     .map(({ entry }) => entry)
 })
 
+type RowElement = InstanceType<typeof window.HTMLElement>
+
+const tableRef = ref<{ $el: RowElement } | null>(null)
+
+const scrollTop = ref(0)
+const rowHeight = ref(48)
+const containerHeight = ref(0)
+const editingId = ref<number | null>(null)
+
+let scrollerEl: RowElement | null = null
+let rafId: number | null = null
+
+const windowInfo = computed(() => {
+  const len = sortedEntries.value.length
+  const rowHeightPx = rowHeight.value > 0 ? rowHeight.value : 48
+  const visible = Math.ceil(containerHeight.value / rowHeightPx) + 10
+  const start = Math.min(
+    Math.max(Math.floor(scrollTop.value / rowHeightPx) - 5, 0),
+    Math.max(0, len - visible)
+  )
+  return { len, rowHeightPx, visible, start }
+})
+
+const renderedEntries = computed(() => {
+  const { start, visible } = windowInfo.value
+  const exempt = new Set<number>()
+  if (editingId.value !== null) exempt.add(editingId.value)
+  const pending = pendingDelete.value
+  if (pending !== null) exempt.add(pending.id)
+  const slice = sortedEntries.value.slice(start, start + visible).filter((entry) => {
+    return !exempt.has(entry.id)
+  })
+  if (exempt.size === 0) return slice
+  return [...slice, ...sortedEntries.value.filter((entry) => exempt.has(entry.id))]
+})
+
+const topSpacerHeight = computed(() => windowInfo.value.start * windowInfo.value.rowHeightPx)
+
+const bottomSpacerHeight = computed(() => {
+  const { len, start, rowHeightPx } = windowInfo.value
+  return Math.max(0, (len - start - renderedEntries.value.length) * rowHeightPx)
+})
+
 const pendingDeleteDate = computed(() =>
   pendingDelete.value !== null ? formatLocalDateTime(pendingDelete.value.timestamp).date : ''
 )
@@ -162,6 +219,43 @@ const validationErrors = computed(() => ({
 const isNewValid = computed(() => {
   return newDate.value && newTime.value && newWeight.value !== null && newWeight.value > 0
 })
+
+watch(
+  () => props.entries,
+  () => {
+    scrollTop.value = 0
+    if (scrollerEl !== null) scrollerEl.scrollTop = 0
+  }
+)
+
+function onScroll(): void {
+  if (rafId !== null) return
+  rafId = window.requestAnimationFrame(() => {
+    rafId = null
+    scrollTop.value = scrollerEl?.scrollTop ?? 0
+  })
+}
+
+function handleResize(): void {
+  const root = tableRef.value?.$el
+  if (!root) return
+  const scroller = root.querySelector<RowElement>('.v-table__wrapper') ?? root
+  containerHeight.value = scroller.clientHeight
+  const firstDataRow = root.querySelector<RowElement>(
+    'tbody tr:not(.new-entry-row):not(.table-spacer)'
+  )
+  if (firstDataRow !== null && firstDataRow.offsetHeight > 0) {
+    rowHeight.value = firstDataRow.offsetHeight
+  }
+}
+
+function onEditStart(id: number): void {
+  editingId.value = id
+}
+
+function onEditEnd(id: number): void {
+  if (editingId.value === id) editingId.value = null
+}
 
 function initNewEntry(): void {
   const now = getCurrentLocalDateTime()
@@ -219,6 +313,22 @@ function confirmDelete(): void {
 
 onMounted(() => {
   initNewEntry()
+  const root = tableRef.value?.$el
+  if (root) {
+    scrollerEl = root.querySelector<RowElement>('.v-table__wrapper') ?? root
+    scrollerEl.addEventListener('scroll', onScroll)
+  }
+  handleResize()
+  window.addEventListener('resize', handleResize)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+  scrollerEl?.removeEventListener('scroll', onScroll)
+  if (rafId !== null) {
+    window.cancelAnimationFrame(rafId)
+    rafId = null
+  }
 })
 </script>
 

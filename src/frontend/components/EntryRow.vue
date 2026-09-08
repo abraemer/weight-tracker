@@ -87,6 +87,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   update: [id: number, data: UpdateEntry]
   'delete-request': [id: number]
+  'edit-start': [id: number]
+  'edit-end': [id: number]
 }>()
 
 const isEditing = ref(false)
@@ -113,10 +115,12 @@ function startEdit(): void {
   editDate.value = parts[0] ?? ''
   editTime.value = parts[1] ?? ''
   editWeight.value = props.entry.weight_kg
+  emit('edit-start', props.entry.id)
   isEditing.value = true
 }
 
 function cancelEdit(): void {
+  emit('edit-end', props.entry.id)
   isEditing.value = false
 }
 
@@ -124,6 +128,7 @@ function saveEdit(): void {
   if (!isValid.value) return
   const localDateTime = `${editDate.value}T${editTime.value}`
   const utcTimestamp = localToUtc(localDateTime)
+  emit('edit-end', props.entry.id)
   emit('update', props.entry.id, {
     timestamp: utcTimestamp,
     weight_kg: editWeight.value,
