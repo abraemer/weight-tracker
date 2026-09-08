@@ -62,10 +62,13 @@ const props = defineProps<{
   entries: Entry[]
 }>()
 
-const sortedEntries = computed(() => {
-  return [...props.entries].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  )
+const POINT_RADIUS_CUTOFF = 100
+
+const dataPoints = computed(() => {
+  return [...props.entries]
+    .map((e) => ({ timestampMs: Date.parse(e.timestamp), weightKg: e.weight_kg }))
+    .sort((a, b) => a.timestampMs - b.timestampMs)
+    .map((e) => ({ x: e.timestampMs, y: e.weightKg }))
 })
 
 const trend = computed(() => calculateTrend(props.entries))
@@ -75,10 +78,7 @@ const hasTrend = computed(() => trend.value !== null)
 const showTrendline = ref(true)
 
 const chartData = computed(() => {
-  const dataPoints = sortedEntries.value.map((e) => ({
-    x: new Date(e.timestamp).getTime(),
-    y: e.weight_kg,
-  }))
+  const hidePoints = dataPoints.value.length > POINT_RADIUS_CUTOFF
 
   const datasets: Array<{
     label: string
@@ -88,16 +88,18 @@ const chartData = computed(() => {
     tension: number
     fill: boolean
     pointRadius: number
+    pointHitRadius?: number
     borderDash?: number[]
   }> = [
     {
       label: 'Weight (kg)',
-      data: dataPoints,
+      data: dataPoints.value,
       borderColor: 'rgb(25, 118, 210)',
       backgroundColor: 'rgba(25, 118, 210, 0.1)',
       tension: 0.1,
       fill: true,
-      pointRadius: 4,
+      pointRadius: hidePoints ? 0 : 4,
+      ...(hidePoints ? { pointHitRadius: 8 } : {}),
     },
   ]
 
@@ -130,12 +132,12 @@ const xAxisRange = computed(() => {
   const now = new Date()
   const oneYearAgo = new Date(now.getTime() - 365 * DAY_MS)
 
-  if (sortedEntries.value.length === 0) {
+  if (dataPoints.value.length === 0) {
     const thirtyDaysAgo = new Date(now.getTime() - THIRTY_DAYS_MS)
     return { min: thirtyDaysAgo.getTime(), max: now.getTime() }
   }
 
-  const timestamps = sortedEntries.value.map((e) => new Date(e.timestamp).getTime())
+  const timestamps = dataPoints.value.map((p) => p.x)
   const minTime = Math.min(...timestamps)
   const maxTime = Math.max(...timestamps)
   const range = maxTime - minTime
@@ -150,6 +152,7 @@ const xAxisRange = computed(() => {
 const chartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
+  animation: false as const,
   interaction: {
     intersect: false,
     mode: 'index' as const,
