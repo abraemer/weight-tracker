@@ -186,8 +186,16 @@ function requestDelete(): void {
   opacity: 0.6;
 }
 
+:global(.v-theme--dark .weight-row-btn) {
+  color: rgb(var(--v-theme-on-surface));
+}
+
 .weight-row-btn--confirm {
   color: rgb(var(--v-theme-primary));
+}
+
+:global(.v-theme--dark .weight-row-btn--confirm) {
+  color: #64B5F6;
 }
 
 .weight-row-btn--danger {
