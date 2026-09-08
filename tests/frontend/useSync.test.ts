@@ -277,17 +277,137 @@ describe('useSync background sync engine', () => {
       expect(activeUserId.value).toBe(1)
     })
 
-    it('replaces the entriesByUser Map instance on every sync', async () => {
+    it('keeps the entriesByUser Map instance when the payload is unchanged and replaces it when the payload changes', async () => {
       entriesByUser.value = new Map([[1, [entryA]]])
+      users.value = [alice]
       mockedFetchState.mockResolvedValue({ users: [alice], entries: [entryA] })
       const before = entriesByUser.value
-
       const { request } = useSync()
       request()
       await settle(300)
 
-      expect(entriesByUser.value).not.toBe(before)
+      expect(entriesByUser.value).toBe(before)
       expect(entriesByUser.value.get(1)).toEqual([entryA])
+
+      mockedFetchState.mockResolvedValue({ users: [alice], entries: [entryA, entryB] })
+      request()
+      await settle(300)
+
+      expect(entriesByUser.value).not.toBe(before)
+      expect(entriesByUser.value.get(1)).toEqual([entryB, entryA])
+    })
+  })
+
+  describe('skip-when-unchanged state comparison', () => {
+    it('keeps entriesByUser and users Object.is-unchanged on an identical second payload while the cache still refreshes', async () => {
+      mockedFetchState.mockResolvedValue({ users: [alice], entries: [entryA, entryB] })
+      const { request } = useSync()
+      request()
+      await settle(300)
+      const mapAfterFirst = entriesByUser.value
+      const usersAfterFirst = users.value
+
+      await clearCache()
+      request()
+      await settle(300)
+
+      expect(entriesByUser.value).toBe(mapAfterFirst)
+      expect(users.value).toBe(usersAfterFirst)
+      const cached = await readCache()
+      expect(cached?.users).toEqual([alice])
+      expect(cached?.entries).toEqual([entryA, entryB])
+    })
+
+    it('applies a payload whose entry updated_at changed', async () => {
+      mockedFetchState.mockResolvedValue({ users: [alice], entries: [entryA, entryB] })
+      const { request } = useSync()
+      request()
+      await settle(300)
+      const mapAfterFirst = entriesByUser.value
+      const bumped: Entry = { ...entryA, updated_at: '2024-02-02T00:00:00.000Z' }
+
+      mockedFetchState.mockResolvedValue({ users: [alice], entries: [bumped, entryB] })
+      request()
+      await settle(300)
+
+      expect(entriesByUser.value).not.toBe(mapAfterFirst)
+      expect(entriesByUser.value.get(1)).toEqual([entryB, bumped])
+    })
+
+    it('applies a payload that adds a user while entries are identical', async () => {
+      mockedFetchState.mockResolvedValue({ users: [alice], entries: [entryA] })
+      const { request } = useSync()
+      request()
+      await settle(300)
+      const mapAfterFirst = entriesByUser.value
+      const usersAfterFirst = users.value
+
+      mockedFetchState.mockResolvedValue({ users: [alice, bob], entries: [entryA] })
+      request()
+      await settle(300)
+
+      expect(users.value).not.toBe(usersAfterFirst)
+      expect(users.value).toEqual([alice, bob])
+      expect(entriesByUser.value).not.toBe(mapAfterFirst)
+      expect(entriesByUser.value.get(1)).toEqual([entryA])
+    })
+
+    it('skips assignment and preserves an in-flight temp row when an unchanged payload arrives', async () => {
+      users.value = [alice]
+      entriesByUser.value = new Map([[1, [tempEntry, entryA]]])
+      operationLoading.value.set('add-1', true)
+      mockedFetchState.mockResolvedValue({ users: [alice], entries: [entryA, entryB] })
+      const { request } = useSync()
+      request()
+      await settle(300)
+      const mapAfterFirst = entriesByUser.value
+
+      request()
+      await settle(300)
+
+      expect(entriesByUser.value).toBe(mapAfterFirst)
+      expect(entriesByUser.value.get(1)).toEqual([tempEntry, entryB, entryA])
+    })
+
+    it('still auto-switches the active user when a changed payload tombstones them', async () => {
+      users.value = [alice, bob]
+      activeUserId.value = 2
+      entriesByUser.value = new Map([
+        [1, [entryA]],
+        [2, [entryBob]],
+      ])
+      mockedFetchState.mockResolvedValue({
+        users: [alice, bobTombstone],
+        entries: [entryA, entryBobTombstone],
+      })
+      const { request } = useSync()
+      request()
+      await settle(300)
+
+      expect(users.value).toEqual([alice])
+      expect(activeUserId.value).toBe(1)
+      expect(entriesByUser.value.has(2)).toBe(false)
+    })
+
+    it('normalizes zero-entry user keys on the first payload and skips the identical second payload', async () => {
+      users.value = [alice]
+      entriesByUser.value = new Map([[1, []]])
+      mockedFetchState.mockResolvedValue({ users: [alice, bob], entries: [] })
+      const { request } = useSync()
+      request()
+      await settle(300)
+
+      expect([...entriesByUser.value.keys()].sort()).toEqual([1, 2])
+      expect(entriesByUser.value.get(1)).toEqual([])
+      expect(entriesByUser.value.get(2)).toEqual([])
+      const mapAfterFirst = entriesByUser.value
+      const usersAfterFirst = users.value
+
+      request()
+      await settle(300)
+
+      expect(entriesByUser.value).toBe(mapAfterFirst)
+      expect(users.value).toBe(usersAfterFirst)
     })
   })
 

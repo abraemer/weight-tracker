@@ -104,6 +104,28 @@ async function runSync(): Promise<void> {
   }
 }
 
+function rowsMatch(
+  next: { id: number; updated_at: string }[],
+  current: { id: number; updated_at: string }[]
+): boolean {
+  if (next.length !== current.length) return false
+  const versions = new Map<number, string>()
+  for (const row of current) versions.set(row.id, row.updated_at)
+  for (const row of next) {
+    if (versions.get(row.id) !== row.updated_at) return false
+  }
+  return true
+}
+
+function entryGroupsMatch(next: Map<number, Entry[]>, current: Map<number, Entry[]>): boolean {
+  if (next.size !== current.size) return false
+  for (const [userId, list] of next) {
+    const currentList = current.get(userId)
+    if (currentList === undefined || !rowsMatch(list, currentList)) return false
+  }
+  return true
+}
+
 function applyState(state: { users: User[]; entries: Entry[] }): void {
   const previous = entriesByUser.value
   const tempRows: Entry[] = []
@@ -145,11 +167,15 @@ function applyState(state: { users: User[]; entries: Entry[] }): void {
   for (const list of grouped.values()) {
     list.sort((a, b) => b.timestamp.localeCompare(a.timestamp))
   }
-  entriesByUser.value = grouped
-
-  users.value = state.users
+  for (const user of state.users) {
+    if (!user.deleted && !grouped.has(user.id)) grouped.set(user.id, [])
+  }
+  const nextUsers = state.users
     .filter((u) => !u.deleted)
     .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id)
+  if (entryGroupsMatch(grouped, previous) && rowsMatch(nextUsers, users.value)) return
+  entriesByUser.value = grouped
+  users.value = nextUsers
   if (!users.value.some((u) => u.id === activeUserId.value)) {
     activeUserId.value = users.value[0]?.id ?? null
   }
