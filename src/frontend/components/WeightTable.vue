@@ -70,16 +70,39 @@
           :saving-edit="editLoading(entry.id)"
           :saving-delete="deleteLoading(entry.id)"
           @update="handleUpdate"
-          @delete="handleDelete"
+          @delete-request="openDeleteDialog"
         />
       </tbody>
     </v-table>
+
+    <v-dialog
+      :model-value="pendingDelete !== null"
+      max-width="400"
+      @update:model-value="onDialogModelUpdate"
+    >
+      <v-card>
+        <v-card-title>Delete Entry</v-card-title>
+        <v-card-text>
+          Are you sure you want to delete this entry?
+          <div class="mt-2 text-body-2">
+            Date: {{ pendingDeleteDate }}<br />
+            Time: {{ pendingDeleteTime }}<br />
+            Weight: {{ pendingDelete?.weight_kg }} kg
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="closeDeleteDialog"> Cancel </v-btn>
+          <v-btn color="error" variant="flat" @click="confirmDelete"> Delete </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-card>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { getCurrentLocalDateTime, localToUtc } from '../api.js'
+import { ref, computed, watch, onMounted } from 'vue'
+import { getCurrentLocalDateTime, localToUtc, formatLocalDateTime } from '../api.js'
 import type { Entry, UpdateEntry, NewEntry } from '../types/index.js'
 import EntryRow from './EntryRow.vue'
 
@@ -100,11 +123,35 @@ const newDate = ref('')
 const newTime = ref('')
 const newWeight = ref<number | null>(null)
 
+const pendingDelete = ref<Entry | null>(null)
+let pendingUpdatedAtSnapshot = ''
+
 const sortedEntries = computed(() => {
-  return [...props.entries].sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  )
+  return props.entries
+    .map((entry) => ({ entry, ts: Date.parse(entry.timestamp) }))
+    .sort((a, b) => b.ts - a.ts)
+    .map(({ entry }) => entry)
 })
+
+const pendingDeleteDate = computed(() =>
+  pendingDelete.value !== null ? formatLocalDateTime(pendingDelete.value.timestamp).date : ''
+)
+
+const pendingDeleteTime = computed(() =>
+  pendingDelete.value !== null ? formatLocalDateTime(pendingDelete.value.timestamp).time : ''
+)
+
+watch(
+  () => props.entries,
+  () => {
+    const pending = pendingDelete.value
+    if (pending === null) return
+    const live = props.entries.find((entry) => entry.id === pending.id)
+    if (live === undefined || live.updated_at !== pendingUpdatedAtSnapshot) {
+      pendingDelete.value = null
+    }
+  }
+)
 
 const validationErrors = computed(() => ({
   date: !newDate.value,
@@ -147,7 +194,26 @@ function handleUpdate(id: number, data: UpdateEntry): void {
   emit('update', id, data)
 }
 
-function handleDelete(id: number): void {
+function openDeleteDialog(id: number): void {
+  const entry = props.entries.find((e) => e.id === id)
+  if (entry === undefined) return
+  pendingDelete.value = entry
+  pendingUpdatedAtSnapshot = entry.updated_at
+}
+
+function onDialogModelUpdate(open: boolean): void {
+  if (!open) closeDeleteDialog()
+}
+
+function closeDeleteDialog(): void {
+  pendingDelete.value = null
+}
+
+function confirmDelete(): void {
+  const pending = pendingDelete.value
+  if (pending === null) return
+  const id = pending.id
+  pendingDelete.value = null
   emit('delete', id)
 }
 

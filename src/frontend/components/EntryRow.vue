@@ -36,74 +36,41 @@
     </td>
     <td class="text-right" style="white-space: nowrap">
       <template v-if="!isEditing">
-        <v-btn
-          icon
-          size="small"
-          variant="text"
+        <button
+          type="button"
+          class="mdi mdi-pencil weight-row-btn"
+          :class="{ 'weight-row-btn--busy': savingEdit }"
           :disabled="savingEdit || savingDelete"
-          :loading="savingEdit"
+          aria-label="Edit entry"
           @click="startEdit"
-        >
-          <v-icon>mdi-pencil</v-icon>
-        </v-btn>
-        <v-btn
-          icon
-          size="small"
-          variant="text"
-          color="error"
+        ></button>
+        <button
+          type="button"
+          class="mdi mdi-delete weight-row-btn weight-row-btn--danger"
+          :class="{ 'weight-row-btn--busy': savingDelete }"
           :disabled="savingEdit || savingDelete"
-          :loading="savingDelete"
-          @click="showDeleteDialog = true"
-        >
-          <v-icon>mdi-delete</v-icon>
-        </v-btn>
+          aria-label="Delete entry"
+          @click="requestDelete"
+        ></button>
       </template>
       <template v-else>
-        <v-btn
-          icon
-          size="small"
-          variant="text"
-          color="primary"
+        <button
+          type="button"
+          class="mdi mdi-check weight-row-btn weight-row-btn--confirm"
+          :class="{ 'weight-row-btn--busy': savingEdit }"
           :disabled="!isValid"
+          aria-label="Save"
           @click="saveEdit"
-        >
-          <v-icon>mdi-check</v-icon>
-        </v-btn>
-        <v-btn icon size="small" variant="text" @click="cancelEdit">
-          <v-icon>mdi-close</v-icon>
-        </v-btn>
+        ></button>
+        <button
+          type="button"
+          class="mdi mdi-close weight-row-btn"
+          aria-label="Cancel"
+          @click="cancelEdit"
+        ></button>
       </template>
     </td>
   </tr>
-
-  <v-dialog v-model="showDeleteDialog" max-width="400">
-    <v-card>
-      <v-card-title>Delete Entry</v-card-title>
-      <v-card-text>
-        Are you sure you want to delete this entry?
-        <div class="mt-2 text-body-2">
-          Date: {{ formattedDate }}<br />
-          Time: {{ formattedTime }}<br />
-          Weight: {{ entry.weight_kg }} kg
-        </div>
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn variant="text" :disabled="savingEdit || savingDelete" @click="showDeleteDialog = false">
-          Cancel
-        </v-btn>
-        <v-btn
-          color="error"
-          variant="flat"
-          :loading="savingDelete"
-          :disabled="savingEdit"
-          @click="confirmDelete"
-        >
-          Delete
-        </v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
 </template>
 
 <script setup lang="ts">
@@ -119,14 +86,13 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   update: [id: number, data: UpdateEntry]
-  delete: [id: number]
+  'delete-request': [id: number]
 }>()
 
 const isEditing = ref(false)
 const editDate = ref('')
 const editTime = ref('')
 const editWeight = ref(0)
-const showDeleteDialog = ref(false)
 
 const formattedDate = computed(() => formatLocalDateTime(props.entry.timestamp).date)
 const formattedTime = computed(() => formatLocalDateTime(props.entry.timestamp).time)
@@ -165,9 +131,8 @@ function saveEdit(): void {
   isEditing.value = false
 }
 
-function confirmDelete(): void {
-  showDeleteDialog.value = false
-  emit('delete', props.entry.id)
+function requestDelete(): void {
+  emit('delete-request', props.entry.id)
 }
 </script>
 
@@ -178,5 +143,49 @@ function confirmDelete(): void {
 
 .editing-row :deep(.v-field) {
   background-color: rgb(var(--v-theme-surface));
+}
+
+.weight-row-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 50%;
+  padding: 0;
+  background-color: transparent;
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.weight-row-btn:hover:not(:disabled) {
+  background-color: rgba(var(--v-theme-on-surface), 0.08);
+}
+
+.weight-row-btn:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 2px;
+}
+
+.weight-row-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.weight-row-btn.weight-row-btn--busy {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.weight-row-btn--confirm {
+  color: rgb(var(--v-theme-primary));
+}
+
+.weight-row-btn--danger {
+  color: rgb(var(--v-theme-error));
 }
 </style>
