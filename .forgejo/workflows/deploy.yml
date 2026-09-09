@@ -25,7 +25,7 @@ jobs:
           printf '%s\n' "${{ secrets.KNOWN_HOSTS }}" > /tmp/known_hosts
 
       - name: build image
-        run: DOCKER_HOST=tcp://dind:2375 docker build --platform linux/arm64 -t weight-tracker:arm64 -t weight-tracker:${{ gitea.ref_name }} .
+        run: DOCKER_HOST=tcp://dind:2375 docker build --platform linux/arm64 -t weight-tracker:arm64 -t weight-tracker:${{ github.ref_name }} .
 
       - name: deliver and deploy
         run: |
@@ -41,12 +41,12 @@ jobs:
           image_created="$(sed -n 's/^image-created: //p' /tmp/deploy-output.txt)"
           started_at="$(sed -n 's/^container-started-at: //p' /tmp/deploy-output.txt)"
           curl -sf -H "Authorization: Bearer ${{ secrets.NTFY_TOKEN }}" \
-            -d "weight-tracker deploy OK: ref=${{ gitea.ref_name }} sha=${{ gitea.sha }} image-created=${image_created} container-started=${started_at}" \
+            -d "weight-tracker deploy OK: ref=${{ github.ref_name }} sha=${{ github.sha }} image-created=${image_created} container-started=${started_at}" \
             "${{ secrets.NTFY_URL }}/${{ secrets.NTFY_INFO_TOPIC }}"
 
       - name: notify failure
         if: failure()
         run: |
           curl -sf -H "Authorization: Bearer ${{ secrets.NTFY_TOKEN }}" \
-            -d "weight-tracker deploy FAILED: ref=${{ gitea.ref_name }} sha=${{ gitea.sha }}" \
+            -d "weight-tracker deploy FAILED: ref=${{ github.ref_name }} sha=${{ github.sha }}" \
             "${{ secrets.NTFY_URL }}/${{ secrets.NTFY_ALERT_TOPIC }}"
