@@ -36,17 +36,29 @@ jobs:
                 bash /docker/weight-tracker/scripts/ci-deploy.sh | tee /tmp/deploy-output.txt
 
       - name: notify success
+        # Owner rule: human-friendly text — service + reason, no hashes/refs.
+        # Reaching this step implies healthy: ci-deploy.sh verified the
+        # container's 200 liveness before exiting 0.
         if: success()
         run: |
-          image_created="$(sed -n 's/^image-created: //p' /tmp/deploy-output.txt)"
-          started_at="$(sed -n 's/^container-started-at: //p' /tmp/deploy-output.txt)"
+          if [ "${{ github.event_name }}" = "release" ]; then
+            MSG="weight-tracker deployed — release ${{ github.ref_name }} published, service updated and healthy"
+          else
+            MSG="weight-tracker deployed — manual dispatch, service updated and healthy"
+          fi
           curl -sf -H "Authorization: Bearer ${{ secrets.NTFY_TOKEN }}" \
-            -d "weight-tracker deploy OK: ref=${{ github.ref_name }} sha=${{ github.sha }} image-created=${image_created} container-started=${started_at}" \
+            -d "$MSG" \
             "${{ secrets.NTFY_URL }}/${{ secrets.NTFY_INFO_TOPIC }}"
 
       - name: notify failure
         if: failure()
         run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TRIGGER="release published"
+          else
+            TRIGGER="manual dispatch"
+          fi
+          MSG="weight-tracker deployment FAILED — trigger: ${TRIGGER}. Check forgejo Actions for adrian/weight-tracker to see the failing step."
           curl -sf -H "Authorization: Bearer ${{ secrets.NTFY_TOKEN }}" \
-            -d "weight-tracker deploy FAILED: ref=${{ github.ref_name }} sha=${{ github.sha }}" \
+            -d "$MSG" \
             "${{ secrets.NTFY_URL }}/${{ secrets.NTFY_ALERT_TOPIC }}"
